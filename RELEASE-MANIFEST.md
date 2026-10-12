@@ -10,7 +10,7 @@
 - Compatibility: STATUS_CHECK accepts worker versions `0.0.4-dev.m4.2.5` and `0.0.4-dev.m4.2.9` for forward update and rollback; broker source requires the matching compatibility patch.
 - Public surface audit: all release files scanned for private keys, credentials, tokens, local network addresses, private bridge paths, app IDs, and local install paths; no matches found.
 - Docker/HA image build: not run. Home Assistant runtime behavior and live configuration retention remain unverified.
-- Test report: see the pull request commit checks and local results; no live service was started or changed.
+- Local tests: 7 passed, 1 loopback listener/process test skipped because the sandbox denies loopback binding; `npm run syntax` passed. No Home Assistant image build or live service change was performed.
 - `SHA256SUMS` covers release files except itself and this manifest.
 
 This is a prepared source update. It is not an installation or a live recovery claim.
