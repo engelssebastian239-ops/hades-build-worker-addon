@@ -7,6 +7,7 @@ export const TTL_MS = 300_000;
 export const MAX_MESSAGE_BYTES = 4096;
 export const QUEUE_CAPACITY = 3;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SUPPORTED_WORKER_VERSIONS = new Set(['0.0.4-dev.m4.2.5','0.0.4-dev.m4.2.9']);
 const FINGERPRINT = /^sha256:[0-9a-f]{64}$/;
 const REQUEST_KEYS = ['version','action','brokerId','workerId','taskId','jobId','nonce','issuedAt','expiresAt','kind','signature'];
 const RESPONSE_KEYS = ['version','brokerId','workerId','taskId','jobId','nonce','issuedAt','expiresAt','kind','state','result','signature'];
@@ -42,7 +43,7 @@ function requestFields(value, now) {
 function resultValid(kind, result) {
   if (kind === 'STATUS_CHECK')
     return exactObject(result, ['component','version','state','executionEnabled','uptimeSeconds']) &&
-      result.component === 'HADES_BUILD_WORKER' && result.version === '0.0.4-dev.m4.2.5' &&
+      result.component === 'HADES_BUILD_WORKER' && SUPPORTED_WORKER_VERSIONS.has(result.version) &&
       result.state === 'READY' && result.executionEnabled === false &&
       Number.isSafeInteger(result.uptimeSeconds) && result.uptimeSeconds >= 0;
   if (kind === 'HEARTBEAT_CHECK')

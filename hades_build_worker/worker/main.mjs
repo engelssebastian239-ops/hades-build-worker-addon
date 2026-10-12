@@ -6,7 +6,7 @@ import {VERSION,MAX_MESSAGE_BYTES,QUEUE_CAPACITY,identityId,verifyRequest,signRe
 
 const MAX_LEDGER=2048;
 const HTTP_PATH='/v1/diagnostic';
-const VERSION_WORKER='0.0.4-dev.m4.2.5';
+const VERSION_WORKER='0.0.4-dev.m4.2.9';
 
 function readPrivateKey(file) {
   const st=fs.lstatSync(file);

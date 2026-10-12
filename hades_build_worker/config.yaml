@@ -1,11 +1,11 @@
 name: "H.A.D.E.S. Build Worker"
-version: "0.0.4-dev.m4.2.5"
+version: "0.0.4-dev.m4.2.9"
 slug: "hades_build_worker"
 description: "Read-only signed H.A.D.E.S. diagnostics. Arbitrary code execution is disabled."
 arch:
   - aarch64
 startup: application
-boot: manual_only
+boot: auto
 stage: experimental
 init: false
 host_network: false
