@@ -56,11 +56,11 @@ const launcher=fs.readFileSync(path.join(APP,'worker/launcher.mjs'),'utf8');
 
 test('local Home Assistant app has consistent version and aarch64 target',()=>{
   const version=config.match(/^version: "([^"]+)"/m)?.[1];
-  assert.equal(version,'0.0.4-dev.m4.2.5');
+  assert.equal(version,'0.0.4-dev.m4.2.9');
   assert.match(docker,new RegExp('ARG BUILD_VERSION='+version.replaceAll('.','\\.')));
-  assert.match(worker,/const VERSION_WORKER='0\.0.4-dev\.m4\.2\.5'/);
+  assert.match(worker,/const VERSION_WORKER='0\.0\.4-dev\.m4\.2\.9'/);
   assert.match(config,/^arch:\n  - aarch64$/m);
-  assert.match(config,/^boot: manual_only$/m);
+  assert.match(config,/^boot: auto$/m);
 });
 
 test('Docker build context contains every copied source',()=>{
@@ -77,10 +77,16 @@ test('worker creates only its own 0600 runtime key and keeps the same identity a
   const options=path.join(dir,'options.json');
   const key=path.join(dir,'worker-ed25519.pem');
   const ledger=path.join(dir,'ledger.json');
-  fs.writeFileSync(options,JSON.stringify({enabled:true,listen_port:await freePortForTest(),
+  let proc;
+  t.after(async()=>{if(proc) await stopChild(proc.child).catch(()=>{});fs.rmSync(dir,{recursive:true,force:true});});
+  let listenPort;
+  try { listenPort=await freePortForTest(); } catch(error) {
+    if(error.code==='EPERM'){t.skip('sandbox does not permit loopback listener tests');return;}
+    throw error;
+  }
+  fs.writeFileSync(options,JSON.stringify({enabled:true,listen_port:listenPort,
     trusted_broker_id:brokerIdentity(),trusted_broker_public_key:brokerPublicKey()}),{mode:0o600});
-  let proc=spawnWorker(options,key,ledger);
-  t.after(async()=>{await stopChild(proc.child).catch(()=>{});fs.rmSync(dir,{recursive:true,force:true});});
+  proc=spawnWorker(options,key,ledger);
   const first=await proc.ready;
   const st=fs.statSync(key);
   assert.equal(st.mode&0o777,0o600);
@@ -121,4 +127,17 @@ test('diagnostics remain exactly the approved three operations and execution sta
   assert.match(worker,/executionEnabled:false/);
   assert.match(worker,/executable:false/);
   assert.doesNotMatch(worker,/child_process|execSync|spawn\(/);
+});
+
+
+
+test('update keeps existing app identity, data paths and explicit enablement gate',()=>{
+  assert.match(config,/^slug: "hades_build_worker"$/m);
+  assert.match(config,/^boot: auto$/m);
+  assert.match(config,/^  enabled: false$/m);
+  assert.match(launcher,/const DATA_DIR='\/data\/hades-m42\.5'/);
+  assert.match(launcher,/HADES_PRIVATE_KEY_PATH=DATA_DIR\+'\/worker-ed25519\.pem'/);
+  assert.match(launcher,/HADES_LEDGER_PATH=DATA_DIR\+'\/diagnostic-ledger\.json'/);
+  assert.match(worker,/\/data\/hades-m42\.4\/worker-ed25519\.pem/);
+  assert.match(worker,/\/data\/hades-m42\.4\/diagnostic-ledger\.json/);
 });

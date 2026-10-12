@@ -1,34 +1,26 @@
 # H.A.D.E.S. Build Worker
 
-A Home Assistant app repository with a read-only diagnostic receiver.
+Home Assistant app repository for the existing signed, read-only diagnostic receiver.
 
-## Safety defaults
+## Update target
 
-- Diagnostic receiver disabled by default.
-- Only `STATUS_CHECK`, `HEARTBEAT_CHECK`, and `QUEUE_HEALTH_CHECK` are accepted.
-- No arbitrary code execution, shell interface, host mounts, Supervisor API, Docker API, privileged mode, or published ports.
-- The app targets aarch64 and starts manually.
-- Keep the receiver disabled until broker and worker identities are securely provisioned. Installing this test app alone does not establish a broker connection.
+Release `0.0.4-dev.m4.2.9` updates the existing app with slug `hades_build_worker`. Update the installed app from this same repository entry. Do not install a second app instance. Keep the existing app data and Supervisor options.
 
-This is a test build. The Docker image has not been built or validated by Home Assistant Supervisor. Review the source and logs before enabling diagnostics.
+## Safety properties
 
-## Install from Home Assistant on Android
+- `STATUS_CHECK`, `HEARTBEAT_CHECK`, and `QUEUE_HEALTH_CHECK` only.
+- Arbitrary code execution remains disabled.
+- No host mounts, Supervisor or Docker API access, privileged mode, or published ports.
+- Auto boot starts the app process; the stored `enabled` option must still be `true` for the diagnostic listener to become ready.
+- The repository default remains `enabled: false` for new installations. Existing configured options must be verified before and after an update.
 
-1. Open Home Assistant and go to **Settings → Apps → Install app**.
-2. Open the top-right menu, choose **Repositories**, and add:
-   `https://github.com/engelssebastian239-ops/hades-build-worker-addon`
-3. Select **Add**, return to the app store, refresh if needed, and install **H.A.D.E.S. Build Worker**.
-4. Leave `enabled` set to `false`. Do not configure public ports or router forwarding.
+## Verification
 
-The Android app manages the Home Assistant OS app on the server.
-
-## Development
-
-Requires Node.js 20 or later. No npm packages are required.
+Node.js 20 or later; no npm packages are required.
 
 ```sh
 npm test
 npm run syntax
 ```
 
-See [docs/INSTALL.md](docs/INSTALL.md) and [SECURITY.md](SECURITY.md).
+See [the update, backup, and rollback procedure](docs/INSTALL.md) and [SECURITY.md](SECURITY.md).

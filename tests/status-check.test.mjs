@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {generateKeyPairSync} from 'node:crypto';
-import {ACTION,VERSION,identityId,signRequest,verifyResponse} from '../hades_build_worker/shared/protocol.mjs';
+import {ACTION,VERSION,identityId,signRequest,verifyResponse,signResponse} from '../hades_build_worker/shared/protocol.mjs';
 import {createDiagnosticReceiver} from '../hades_build_worker/worker/main.mjs';
 
 test('signed STATUS_CHECK completes from broker request through worker response verification',()=>{
@@ -26,7 +26,7 @@ test('signed STATUS_CHECK completes from broker request through worker response 
     const verified=verifyResponse(response,worker.publicKey,
       {brokerId,workerId,taskId,jobId,nonce,kind:'STATUS_CHECK',expiresAt:request.expiresAt});
     assert.equal(verified.state,'COMPLETED');
-    assert.deepEqual(verified.result,{component:'HADES_BUILD_WORKER',version:'0.0.4-dev.m4.2.5',
+    assert.deepEqual(verified.result,{component:'HADES_BUILD_WORKER',version:'0.0.4-dev.m4.2.9',
       state:'READY',executionEnabled:false,uptimeSeconds:0});
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
