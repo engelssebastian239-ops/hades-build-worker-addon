@@ -1,0 +1,10 @@
+{
+  "name": "hades-build-worker-addon",
+  "version": "0.0.4-dev.m4.2.5",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "syntax": "node --check hades_build_worker/worker/launcher.mjs && node --check hades_build_worker/worker/main.mjs && node --check hades_build_worker/shared/protocol.mjs"
+  }
+}
