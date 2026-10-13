@@ -5,7 +5,7 @@ import {gunzipSync} from 'node:zlib';
 
 export const PACKAGE_STAGE_VERSION = 'HADES_PACKAGE_STAGE_V1';
 export const PACKAGE_STAGE_ACTION = 'PACKAGE_STAGE';
-export const PACKAGE_STAGE_TTL_MS = 300_000;
+export const PACKAGE_STAGE_TTL_MS = 900_000;
 export const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 export const MAX_EXPANDED_BYTES = 16 * 1024 * 1024;
 export const MAX_FILES = 256;
