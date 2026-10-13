@@ -1,5 +1,5 @@
 name: "H.A.D.E.S. Build Worker"
-version: "0.0.4-dev.m4.2.5"
+version: "0.0.5-dev.m5.6"
 slug: "hades_build_worker"
 description: "Read-only signed H.A.D.E.S. diagnostics. Arbitrary code execution is disabled."
 arch:
@@ -28,11 +28,13 @@ ulimits:
   nofile: 128
 options:
   enabled: false
+  package_stage_enabled: false
   listen_port: 8765
   trusted_broker_id: ""
   trusted_broker_public_key: ""
 schema:
   enabled: bool
+  package_stage_enabled: bool
   listen_port: int
   trusted_broker_id: str
   trusted_broker_public_key: str

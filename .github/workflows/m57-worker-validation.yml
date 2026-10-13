@@ -1,0 +1,43 @@
+name: M5.7 Worker Candidate Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m57-worker-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arm64-tests-and-build:
+    name: ARM64 regression and isolated image build
+    if: github.event.pull_request.head.repo.full_name == 'engelssebastian239-ops/hades-build-worker-addon'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check architecture and version contract
+        run: |
+          set -eu
+          test "$(uname -m)" = "aarch64"
+          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.5-dev.m5.6'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.7 verified candidate version',v)"
+      - name: Worker full regression suite
+        run: npm test
+      - name: Worker syntax checks
+        run: npm run syntax
+      - name: Build ARM64 Home Assistant Worker image (do not publish)
+        run: |
+          set -eu
+          docker build --progress=plain --tag hades-worker:m57-ci ./hades_build_worker
+          docker image inspect hades-worker:m57-ci --format '{{.Architecture}} {{.Os}}'

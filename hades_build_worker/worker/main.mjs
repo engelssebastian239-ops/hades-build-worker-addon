@@ -3,10 +3,12 @@ import path from 'node:path';
 import http from 'node:http';
 import {createPrivateKey,createPublicKey,generateKeyPairSync} from 'node:crypto';
 import {VERSION,MAX_MESSAGE_BYTES,QUEUE_CAPACITY,identityId,verifyRequest,signResponse,replayKey,requestDigest} from '../shared/protocol.mjs';
+import {createPackageStageReceiver,MAX_ARCHIVE_BYTES} from './package-stage.mjs';
 
 const MAX_LEDGER=2048;
 const HTTP_PATH='/v1/diagnostic';
-const VERSION_WORKER='0.0.4-dev.m4.2.5';
+const HTTP_PACKAGE_PATH='/v1/package-stage';
+const VERSION_WORKER='0.0.5-dev.m5.6';
 
 function readPrivateKey(file) {
   const st=fs.lstatSync(file);
@@ -111,18 +113,21 @@ function parseOptions(file) {
     ?JSON.parse(process.env.HADES_OPTIONS_JSON)
     :JSON.parse(fs.readFileSync(file,'utf8'));
   if(!options||typeof options!=='object'||Array.isArray(options)) throw Error('options_invalid');
-  if(typeof options.enabled!=='boolean'||!Number.isInteger(options.listen_port)||
+  if(typeof options.enabled!=='boolean'||(options.package_stage_enabled!==undefined&&typeof options.package_stage_enabled!=='boolean')||!Number.isInteger(options.listen_port)||
       options.listen_port<1024||options.listen_port>65535||
       typeof options.trusted_broker_id!=='string'||typeof options.trusted_broker_public_key!=='string')
     throw Error('options_invalid');
   return options;
 }
-function createServer(receiver,{port,host='::',clock=Date.now}) {
+export function createServer(receiver,{port,host='::',clock=Date.now,packageStageReceiver=null}) {
   let active=0,windowStart=clock(),windowCount=0;
   const server=http.createServer((req,res)=>{
     const release=()=>{if(active>0)active--;};
-    if(req.method!=='POST'||req.url!==HTTP_PATH){res.writeHead(404,{'cache-control':'no-store'}).end();return;}
-    if(req.headers['content-type']?.split(';')[0].trim().toLowerCase()!=='application/json'){
+    if(req.method!=='POST'||![HTTP_PATH,HTTP_PACKAGE_PATH].includes(req.url)){res.writeHead(404,{'cache-control':'no-store'}).end();return;}
+    const isPackage=req.url===HTTP_PACKAGE_PATH;
+    if(isPackage&&!packageStageReceiver){res.writeHead(404,{'cache-control':'no-store'}).end();return;}
+    const expectedType=isPackage?'application/gzip':'application/json';
+    if(req.headers['content-type']?.split(';')[0].trim().toLowerCase()!==expectedType){
       res.writeHead(415,{'cache-control':'no-store'}).end();return;
     }
     const now=clock();
@@ -134,17 +139,23 @@ function createServer(receiver,{port,host='::',clock=Date.now}) {
     let size=0;const chunks=[];
     req.on('data',chunk=>{
       size+=chunk.length;
-      if(size>MAX_MESSAGE_BYTES){res.writeHead(413,{'cache-control':'no-store'}).end();req.destroy();return;}
+      if(size>(isPackage?MAX_ARCHIVE_BYTES:MAX_MESSAGE_BYTES)){res.writeHead(413,{'cache-control':'no-store'}).end();req.destroy();return;}
       chunks.push(chunk);
     });
     req.on('error',()=>{});
     req.on('end',()=>{
       if(res.writableEnded)return;
       try {
-        const value=receiver.handle(Buffer.concat(chunks).toString('utf8'));
+        const bytes=Buffer.concat(chunks);
+        let value;
+        if(isPackage){
+          const encoded=req.headers['x-hades-package-envelope'];
+          if(typeof encoded!=='string'||encoded.length>4096||!/^[A-Za-z0-9_-]+$/.test(encoded))throw Error('package_envelope_invalid');
+          value=packageStageReceiver.stage(JSON.parse(Buffer.from(encoded,'base64url').toString('utf8')),bytes);
+        }else value=receiver.handle(bytes.toString('utf8'));
         res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'}).end(JSON.stringify(value));
       } catch {
-        res.writeHead(400,{'cache-control':'no-store'}).end('diagnostic request rejected');
+        res.writeHead(400,{'cache-control':'no-store'}).end(isPackage?'package stage rejected':'diagnostic request rejected');
       }
     });
   });
@@ -168,12 +179,29 @@ export async function main() {
     workerPrivateKey:privateKey,
     ledgerPath:process.env.HADES_LEDGER_PATH||'/data/hades-m42.4/diagnostic-ledger.json'
   });
-  const server=createServer(receiver,{port:options.listen_port,host:'::'});
+  let packageStageReceiver=null;
+  if(options.package_stage_enabled===true){
+    // launcher.mjs prepares this existing worker-owned, mode-0700 data root
+    // before dropping to UID/GID 1000. Keeping stage data beneath it avoids
+    // writes to the Supervisor-owned /data parent and preserves old ledgers.
+    const workerDataRoot='/data/hades-m42.5';
+    const stageRoot=path.join(workerDataRoot,'package-stage');
+    try { fs.mkdirSync(stageRoot,{mode:0o700}); }
+    catch(error) { if(error.code!=='EEXIST') throw error; }
+    const stageStat=fs.lstatSync(stageRoot);
+    if(!stageStat.isDirectory()||stageStat.isSymbolicLink()||stageStat.uid!==process.getuid())
+      throw Error('stage_root_unsafe');
+    fs.chmodSync(stageRoot,0o700);
+    packageStageReceiver=createPackageStageReceiver({enabled:true,brokerId:options.trusted_broker_id,
+      trustedBrokerPublicKey:options.trusted_broker_public_key,workerPrivateKey:privateKey,
+      stageRoot,ledgerPath:path.join(workerDataRoot,'package-stage-ledger.json')});
+  }
+  const server=createServer(receiver,{port:options.listen_port,host:'::',packageStageReceiver});
   server.on('error',()=>{console.error(JSON.stringify({state:'STARTUP_BLOCKED',error:'listener_unavailable'}));process.exitCode=2;});
   await new Promise((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
   console.log(JSON.stringify({state:'HADES_BUILD_WORKER_READY',version:VERSION_WORKER,workerId:receiver.workerId,
     workerPublicKeyBase64:publicKeyBase64,identityCreatedThisStart:provisioned.created,
-    host:'::',port:options.listen_port,executionEnabled:false,publicPort:false}));
+    host:'::',port:options.listen_port,executionEnabled:false,packageStageEnabled:!!packageStageReceiver,publicPort:false}));
   const stop=()=>server.close(()=>process.exit(0));
   process.once('SIGTERM',stop);process.once('SIGINT',stop);
 }
