@@ -1,19 +1,35 @@
-# Install and rollback
+# H.A.D.E.S. Build Worker — controlled update and recovery
 
-## Home Assistant OS
+## Scope and approval gate
 
-Add this Git repository in **Settings → Apps → Install app → ⋮ → Repositories**, then install **H.A.D.E.S. Build Worker**. Older Home Assistant versions may label this menu **Add-ons**.
+The installed Home Assistant app is confirmed to use this repository. Worker PR #2 proposes version `0.0.5-dev.m5.6`; the default branch remains on the prior release until the PR is reviewed and merged.
 
-Keep `enabled: false`. The receiver cannot accept requests until a trusted broker identity is configured. The app is manually started and exposes no host port.
+Merging can make the update available to Home Assistant. The automatic-update setting has not been verified, so treat merge as potentially starting the app update. Do not merge or update without the owner's explicit approval for this Worker-only change.
 
-## Build status
+The update may restart the Build Worker app. It must not restart the Home Assistant host. Keep `package_stage_enabled: false`; this update does not authorize a package transfer, installation, or code execution.
 
-This repository contains the complete Home Assistant app build context, but no image build has been performed here. Supervisor image construction, in-OS runtime behavior, and device integration are unverified.
+## Preserve the existing installation
 
-## Rollback
+- Update the already-installed app in place through Home Assistant. Do not install a duplicate, uninstall the app, clear app data, or reset its options.
+- The existing and candidate launchers use the same Supervisor-persistent `/data/hades-m42.5` directory. Both use the same worker identity file and diagnostic replay-ledger paths.
+- Existing options remain compatible: `enabled`, `listen_port`, `trusted_broker_id`, and `trusted_broker_public_key`. The new `package_stage_enabled` option defaults to false when absent and must remain false for this update.
+- No production private key or broker secret belongs in the repository, an issue, or a command.
 
-Stop and uninstall this test app from Home Assistant. This does not modify the existing local Build Worker installation. Retain the app data only if the generated test identity and replay ledger are needed; otherwise remove app data through the Home Assistant UI.
+## Controlled update sequence
 
-## Identity handling
+1. Obtain explicit approval for merging PR #2 and updating only the existing Build Worker app. Treat automatic updating as potentially enabled because its current setting is unknown.
+2. A full Home Assistant backup is reported present. Its integrity and restore procedure have not been verified; backup presence alone is not proof of a tested rollback.
+3. Merge only Worker PR #2 after review. Do not merge the separate queue PR stack as part of this update.
+4. Refresh the existing repository in Home Assistant and update the existing app in place, preserving all current options and app data. Keep package staging disabled.
+5. Verify the displayed app version, app health, and unchanged worker identity. The existing diagnostic protocol and replay ledger must remain intact.
+6. Stop if the update or verification fails. Do not uninstall or clear data. Do not attempt a full Home Assistant restore without separate approval.
 
-No production private key is shipped. When enabled, the worker creates its own Ed25519 key in app data with mode 0600. The trusted broker public key is configured separately. Never place private keys in the repository or issue reports.
+## Rollback boundary
+
+The app's state lives under Home Assistant's persistent app data directory. The proposed update retains the same data path, identity file, and diagnostic ledger; this is a code-level compatibility check, not a tested rollback.
+
+A full Home Assistant restore replaces the current Home Assistant installation and apps and restarts Home Assistant. The available backup has not been integrity-tested or restored. Therefore rollback readiness is **NOT VERIFIED**. Do not describe the update as having a tested rollback.
+
+## Package staging gate
+
+The receiver remains disabled by default. `package_stage_enabled` must remain false during the Worker update. A first live `PACKAGE_STAGE` transfer requires its own explicit approval after the Worker and broker changes are independently reviewed and the end-to-end path is ready.
