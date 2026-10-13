@@ -1,10 +1,9 @@
 name: M5.7 Worker Candidate Validation
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/m55-package-stage-worker-20261013
-  workflow_dispatch:
+      - main
 
 permissions:
   contents: read
@@ -16,6 +15,7 @@ concurrency:
 jobs:
   arm64-tests-and-build:
     name: ARM64 regression and isolated image build
+    if: github.event.pull_request.head.repo.full_name == 'engelssebastian239-ops/hades-build-worker-addon'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
