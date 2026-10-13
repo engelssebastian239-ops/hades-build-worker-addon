@@ -31,7 +31,7 @@ jobs:
         run: |
           set -eu
           test "$(uname -m)" = "aarch64"
-          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.5-dev.m5.6'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.7 verified candidate version',v)"
+          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.6-dev.m5.12'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.7 verified candidate version',v)"
       - name: Worker full regression suite
         run: npm test
       - name: Worker syntax checks
