@@ -9,6 +9,7 @@ RUN apk add --no-cache nodejs
 WORKDIR /opt/hades-m42.5
 COPY shared/protocol.mjs ./shared/protocol.mjs
 COPY worker/main.mjs ./worker/main.mjs
+COPY worker/package-stage.mjs ./worker/package-stage.mjs
 COPY worker/launcher.mjs ./worker/launcher.mjs
 USER root:root
 ENTRYPOINT ["/usr/bin/node", "/opt/hades-m42.5/worker/launcher.mjs"]

@@ -28,11 +28,13 @@ ulimits:
   nofile: 128
 options:
   enabled: false
+  package_stage_enabled: false
   listen_port: 8765
   trusted_broker_id: ""
   trusted_broker_public_key: ""
 schema:
   enabled: bool
+  package_stage_enabled: bool
   listen_port: int
   trusted_broker_id: str
   trusted_broker_public_key: str
