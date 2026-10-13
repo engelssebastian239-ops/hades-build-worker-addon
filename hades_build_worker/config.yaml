@@ -1,5 +1,5 @@
 name: "H.A.D.E.S. Build Worker"
-version: "0.0.5-dev.m5.6"
+version: "0.0.6-dev.m5.12"
 slug: "hades_build_worker"
 description: "Read-only signed H.A.D.E.S. diagnostics. Arbitrary code execution is disabled."
 arch:
