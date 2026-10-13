@@ -72,12 +72,18 @@ test('Docker build context contains every copied source',()=>{
 });
 
 test('worker creates only its own 0600 runtime key and keeps the same identity after restart',async t=>{
+  let port;
+  try { port=await freePortForTest(); }
+  catch(error) {
+    if(error.code==='EPERM') { t.skip('sandbox prohibits local TCP listeners'); return; }
+    throw error;
+  }
   const dir=fs.mkdtempSync(path.join(process.env.TMPDIR||'/tmp','hades-key-provision-'));
   fs.chmodSync(dir,0o700);
   const options=path.join(dir,'options.json');
   const key=path.join(dir,'worker-ed25519.pem');
   const ledger=path.join(dir,'ledger.json');
-  fs.writeFileSync(options,JSON.stringify({enabled:true,listen_port:await freePortForTest(),
+  fs.writeFileSync(options,JSON.stringify({enabled:true,listen_port:port,
     trusted_broker_id:brokerIdentity(),trusted_broker_public_key:brokerPublicKey()}),{mode:0o600});
   let proc=spawnWorker(options,key,ledger);
   t.after(async()=>{await stopChild(proc.child).catch(()=>{});fs.rmSync(dir,{recursive:true,force:true});});
@@ -102,6 +108,15 @@ test('app is internal-only and has no host/API access or mounts',()=>{
     assert.match(config,new RegExp('^'+key+': false$','m'));
   assert.match(config,/^privileged: \[\]$/m);
   assert.match(config,/^  enabled: false$/m);
+});
+
+test('package staging uses the existing private worker data root without replacing diagnostic state',()=>{
+  assert.match(worker,/const workerDataRoot='\/data\/hades-m42\.5'/);
+  assert.match(worker,/path\.join\(workerDataRoot,'package-stage'\)/);
+  assert.match(worker,/path\.join\(workerDataRoot,'package-stage-ledger\.json'\)/);
+  assert.doesNotMatch(worker,/hades-m42\.4\/package-stage-ledger/);
+  assert.match(launcher,/HADES_LEDGER_PATH=DATA_DIR\+'\/diagnostic-ledger\.json'/);
+  assert.match(launcher,/fs\.chmodSync\(DATA_DIR,0o700\)/);
 });
 
 test('root bootstrap reads Supervisor options then drops to UID/GID 1000 before worker import',()=>{
