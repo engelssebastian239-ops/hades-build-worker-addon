@@ -59,7 +59,7 @@ test('local Home Assistant app has consistent version and aarch64 target',()=>{
   assert.equal(version,'0.0.5-dev.m5.6');
   assert.match(docker,new RegExp('ARG BUILD_VERSION='+version.replaceAll('.','\\.')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8')).version,version);
-  assert.match(worker,/const VERSION_WORKER='0\.0.4-dev\.m4\.2\.5'/);
+  assert.ok(worker.includes("const VERSION_WORKER='"+version+"'"));
   assert.match(config,/^arch:\n  - aarch64$/m);
   assert.match(config,/^boot: manual_only$/m);
 });
