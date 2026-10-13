@@ -26,7 +26,14 @@ function exact(value, keys) {
   return !!value && Object.getPrototypeOf(value) === Object.prototype &&
     Object.keys(value).sort().join(',') === [...keys].sort().join(',');
 }
-function publicKeyOf(key) { return key?.type === 'public' ? key : createPublicKey(key); }
+function publicKeyOf(key) {
+  if (typeof key === 'string') {
+    if (key.length < 40 || key.length > 512 || !/^[A-Za-z0-9+/]+={0,2}$/.test(key))
+      throw Error('trusted_key_invalid');
+    return createPublicKey({key:Buffer.from(key,'base64'),format:'der',type:'spki'});
+  }
+  return key?.type === 'public' ? key : createPublicKey(key);
+}
 export function packageStageIdentity(publicKey) {
   return 'sha256:' + createHash('sha256').update(publicKeyOf(publicKey).export({type:'spki',format:'der'})).digest('hex');
 }
