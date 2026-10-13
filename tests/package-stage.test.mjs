@@ -36,7 +36,7 @@ test('stages an authorized pinned package safely and returns a signed correlated
   const pair=keyPair(),bytes=Buffer.from('mobile source');
   const archiveBytes=archive([tarEntry('repo-a/hades-m2-local-app/hades_m2_mobile/README.md',bytes)]);
   const fields=requestFixture(pair,archiveBytes),request=signPackageStageRequest({version:PACKAGE_STAGE_VERSION,action:PACKAGE_STAGE_ACTION,...fields},pair.brokerPrivateKey);
-  const receiver=createPackageStageReceiver({enabled:true,brokerId:fields.brokerId,trustedBrokerPublicKey:pair.brokerPublicKey,
+  const receiver=createPackageStageReceiver({enabled:true,brokerId:fields.brokerId,trustedBrokerPublicKey:pair.brokerPublicKey.export({type:'spki',format:'der'}).toString('base64'),
     workerPrivateKey:pair.workerPrivateKey,stageRoot,ledgerPath:path.join(dir,'ledger.json')});
   const response=receiver.stage(request,archiveBytes);
   assert.equal(response.state,'STAGED');assert.equal(response.fileCount,1);assert.equal(response.byteCount,bytes.length);
@@ -97,4 +97,14 @@ test('exposes a separate bounded internal HTTP endpoint only when explicitly ena
     try { const denied=await fetch(`http://127.0.0.1:${disabled.address().port}/v1/package-stage`,{method:'POST'});assert.equal(denied.status,404); }
     finally { await new Promise(resolve=>disabled.close(resolve)); }
   } finally { await new Promise(resolve=>server.close(resolve)); }
+});
+
+test('rejects malformed configured base64 DER public keys before starting stage receiver',()=>{
+  const dir=temp(),stageRoot=path.join(dir,'stage');fs.mkdirSync(stageRoot,{mode:0o700});
+  const pair=keyPair(),brokerId=packageStageIdentity(pair.brokerPublicKey);
+  for(const invalid of ['wrong_key_format','', '-----BEGIN PUBLIC KEY-----']) {
+    assert.throws(()=>createPackageStageReceiver({enabled:true,brokerId,
+      trustedBrokerPublicKey:invalid,workerPrivateKey:pair.workerPrivateKey,
+      stageRoot,ledgerPath:path.join(dir,'ledger.json')}),/trusted_key_invalid|unsupported|decode|key/i);
+  }
 });
