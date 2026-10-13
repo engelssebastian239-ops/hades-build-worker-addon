@@ -181,12 +181,20 @@ export async function main() {
   });
   let packageStageReceiver=null;
   if(options.package_stage_enabled===true){
-    const stageRoot='/data/hades-m42.6-package-stage';
-    fs.mkdirSync(stageRoot,{recursive:true,mode:0o700});
+    // launcher.mjs prepares this existing worker-owned, mode-0700 data root
+    // before dropping to UID/GID 1000. Keeping stage data beneath it avoids
+    // writes to the Supervisor-owned /data parent and preserves old ledgers.
+    const workerDataRoot='/data/hades-m42.5';
+    const stageRoot=path.join(workerDataRoot,'package-stage');
+    try { fs.mkdirSync(stageRoot,{mode:0o700}); }
+    catch(error) { if(error.code!=='EEXIST') throw error; }
+    const stageStat=fs.lstatSync(stageRoot);
+    if(!stageStat.isDirectory()||stageStat.isSymbolicLink()||stageStat.uid!==process.getuid())
+      throw Error('stage_root_unsafe');
     fs.chmodSync(stageRoot,0o700);
     packageStageReceiver=createPackageStageReceiver({enabled:true,brokerId:options.trusted_broker_id,
       trustedBrokerPublicKey:options.trusted_broker_public_key,workerPrivateKey:privateKey,
-      stageRoot,ledgerPath:process.env.HADES_PACKAGE_STAGE_LEDGER_PATH||'/data/hades-m42.4/package-stage-ledger.json'});
+      stageRoot,ledgerPath:path.join(workerDataRoot,'package-stage-ledger.json')});
   }
   const server=createServer(receiver,{port:options.listen_port,host:'::',packageStageReceiver});
   server.on('error',()=>{console.error(JSON.stringify({state:'STARTUP_BLOCKED',error:'listener_unavailable'}));process.exitCode=2;});
