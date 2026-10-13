@@ -164,6 +164,7 @@ export function createPackageStageReceiver({enabled=false,brokerId,trustedBroker
   const root=path.resolve(stageRoot), rootStat=fs.lstatSync(root);
   if(!rootStat.isDirectory()||rootStat.isSymbolicLink()||rootStat.uid!==process.getuid()||(rootStat.mode&0o077)!==0) throw Error('stage_root_unsafe');
   const ledger=readLedger(ledgerPath);
+  const ownedDirectory=dir=>{try{const st=fs.lstatSync(dir);return st.isDirectory()&&!st.isSymbolicLink()&&st.uid===process.getuid()&&(st.mode&0o077)===0;}catch{return false;}};
   return Object.freeze({
     workerId,
     stage(request, archive) {
@@ -174,21 +175,39 @@ export function createPackageStageReceiver({enabled=false,brokerId,trustedBroker
       const key=[v.brokerId,v.taskId,v.jobId,v.nonce].join(':');
       const digest=createHash('sha256').update(requestBytes(v)).digest('hex');
       const prior=ledger.get(key);
-      if(prior) { if(prior.digest!==digest) throw Error('package_stage_replay_conflict'); return prior.response; }
+      const target=path.join(root,id),pending=path.join(root,'.'+id+'.pending');
+      if(prior) {
+        if(prior.digest!==digest) throw Error('package_stage_replay_conflict');
+        if(prior.state==='PREPARED'){
+          if(ownedDirectory(target)){}
+          else if(ownedDirectory(pending))fs.renameSync(pending,target);
+          else throw Error('package_stage_recovery_missing');
+          prior.state='STAGED';persistLedger(ledgerPath,ledger);
+        }
+        if(prior.state==='STAGED'&&!ownedDirectory(target))throw Error('package_stage_recovery_missing');
+        return prior.response;
+      }
       for(const row of ledger.values()) if(row.taskId===v.taskId||row.jobId===v.jobId||row.nonce===v.nonce) throw Error('package_stage_replay_conflict');
       if(ledger.size>=2048) throw Error('package_stage_ledger_full');
-      const target=path.join(root,id);
-      fs.mkdirSync(target,{mode:0o700});
+      if(fs.existsSync(target))throw Error('package_stage_target_collision');
+      if(fs.existsSync(pending)){
+        if(!ownedDirectory(pending))throw Error('package_stage_pending_unsafe');
+        fs.rmSync(pending,{recursive:true,force:true});
+      }
+      fs.mkdirSync(pending,{mode:0o700});
       let summary;
-      try { summary=extractPackageTarGz(archive,{packagePath:v.packagePath,destination:target}); }
-      catch(e) { fs.rmSync(target,{recursive:true,force:true}); throw e; }
+      try { summary=extractPackageTarGz(archive,{packagePath:v.packagePath,destination:pending}); }
+      catch(e) { fs.rmSync(pending,{recursive:true,force:true}); throw e; }
       const packageSha256=createHash('sha256').update(JSON.stringify(summary.files)).digest('hex');
       const fields={version:PACKAGE_STAGE_VERSION,brokerId,workerId,taskId:v.taskId,jobId:v.jobId,nonce:v.nonce,
         issuedAt:now,expiresAt:v.expiresAt,state:'STAGED',packageSha256,fileCount:summary.fileCount,
         byteCount:summary.byteCount,stageId:id,signature:''};
       fields.signature=sign(null,responseBytes(fields),workerPrivateKey).toString('base64url');
-      ledger.set(key,{taskId:v.taskId,jobId:v.jobId,nonce:v.nonce,digest,response:Object.freeze(fields)});
+      const record={taskId:v.taskId,jobId:v.jobId,nonce:v.nonce,digest,state:'PREPARED',response:Object.freeze(fields)};
+      ledger.set(key,record);
       persistLedger(ledgerPath,ledger);
+      fs.renameSync(pending,target);
+      record.state='STAGED';persistLedger(ledgerPath,ledger);
       return Object.freeze(fields);
     }
   });
