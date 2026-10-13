@@ -8,7 +8,7 @@ import {createPackageStageReceiver,MAX_ARCHIVE_BYTES} from './package-stage.mjs'
 const MAX_LEDGER=2048;
 const HTTP_PATH='/v1/diagnostic';
 const HTTP_PACKAGE_PATH='/v1/package-stage';
-const VERSION_WORKER='0.0.5-dev.m5.6';
+const VERSION_WORKER='0.0.6-dev.m5.12';
 
 function readPrivateKey(file) {
   const st=fs.lstatSync(file);
