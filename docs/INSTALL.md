@@ -33,3 +33,17 @@ A full Home Assistant restore replaces the current Home Assistant installation a
 ## Package staging gate
 
 The receiver remains disabled by default. `package_stage_enabled` must remain false during the Worker update. A first live `PACKAGE_STAGE` transfer requires its own explicit approval after the Worker and broker changes are independently reviewed and the end-to-end path is ready.
+
+
+## M5.8 broker compatibility gate
+
+**Worker update status: NO-GO until the broker is upgraded first.** The current M3.5 `STATUS_CHECK` validator accepts only Worker version `0.0.4-dev.m4.2.5`. This candidate reports `0.0.5-dev.m5.6`; an in-place Worker update before the broker validator changes would cause its signed status response to fail schema validation.
+
+The backward-compatible M3.5 change accepting both exact versions is present in private Queue Draft PR #25, but is not merged or deployed. Safe order:
+1. Separately review and obtain authorization to deploy the M3.5 dual-version validator, keeping `packageStageEnabled: false`.
+2. Verify the current `0.0.4-dev.m4.2.5` Worker still passes `STATUS_CHECK`.
+3. Obtain explicit authorization for this Worker update, then update the existing app in place.
+4. Verify `STATUS_CHECK` succeeds for `0.0.5-dev.m5.6`.
+5. Request separate authorization before the first live `PACKAGE_STAGE`.
+
+The owner-provided Home Assistant screenshot indicates automatic updates are switched off. The app source itself is confirmed; this does not remove the broker compatibility dependency.
