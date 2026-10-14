@@ -1,6 +1,6 @@
 {
   "name": "hades-build-worker-addon",
-  "version": "0.0.5-dev.m5.6",
+  "version": "0.0.6-dev.m5.12",
   "private": false,
   "type": "module",
   "scripts": {
