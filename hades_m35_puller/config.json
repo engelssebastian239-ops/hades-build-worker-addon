@@ -1,0 +1,9 @@
+{
+  "repository": "engelssebastian239-ops/hades-hermes-queue",
+  "authorizedAuthors": ["engelssebastian239-ops"],
+  "pollSeconds": 120,
+  "maxIssuesPerCycle": 3,
+  "mode": "intake-only",
+  "tokenFile": "/data/hades-dev-workspace/hades-m35-secrets-20261011/github-token",
+  "stateDirectory": "/data/hades-dev-workspace/hades-m35-secrets-20261011/state"
+}

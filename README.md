@@ -12,6 +12,10 @@ A Home Assistant app repository with a read-only diagnostic receiver.
 
 This is a test build. The Docker image has not been built or validated by Home Assistant Supervisor. Review the source and logs before enabling diagnostics.
 
+## H.A.D.E.S. M3.5 Puller
+
+The repository also contains the separate [`hades_m35_puller`](hades_m35_puller/) app. Home Assistant discovers it from its top-level `config.yaml`; the root `repository.yaml` identifies this repository for the app store. The puller is manual-start and intake-only, with no execution of issue content. Its installation remains gated on verifying UID-1000 write access to the Supervisor-managed persistent `/data` volume. See [`hades_m35_puller/README.md`](hades_m35_puller/README.md).
+
 ## Install from Home Assistant on Android
 
 1. Open Home Assistant and go to **Settings → Apps → Install app**.
