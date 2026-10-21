@@ -50,7 +50,13 @@ test('app is manual-start, intake-only, and cannot execute issue content', () =>
   assert.ok(fs.existsSync(path.join(toolsDirectory, 'encrypt-github-token.mjs')));
   assert.equal(fs.readdirSync(toolsDirectory).some(file => file.endsWith('.ps1')), false);
   assert.match(runScript, /worker\.mjs --loop/);
-  assert.match(runScript, /! -w "\$secrets_dir"/);
+  assert.match(runScript, /root_bootstrap_required/);
+  assert.match(runScript, /chown node:node -- "\$directory"/);
+  assert.match(runScript, /chmod 0700 -- "\$directory"/);
+  assert.match(runScript, /su-exec 1000:1000 node/);
+  assert.match(runScript, /protected_directory_is_symlink/);
+  assert.match(runScript, /protected_file_invalid/);
+  assert.match(runScript, /credential_missing_or_insecure/);
 });
 
 test('Node 22 Alpine OCI index is pinned and declares ARM64', () => {
@@ -58,8 +64,10 @@ test('Node 22 Alpine OCI index is pinned and declares ARM64', () => {
   const manifest = readApp('config.yaml');
   assert.match(dockerfile, /^FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402\s*$/m);
   assert.match(manifest, /^arch:\n  - aarch64\n  - amd64\s*$/m);
+  assert.match(dockerfile, /apk add --no-cache su-exec/);
   assert.match(dockerfile, /test "\$\(id -u node\)" = "1000"/);
-  assert.match(dockerfile, /^USER node:node$/m);
+  assert.match(dockerfile, /test "\$\(id -g node\)" = "1000"/);
+  assert.match(dockerfile, /^USER root$/m);
 });
 
 test('provisioner requires an independently supplied fingerprint and verifies it before reading the private key', () => {
