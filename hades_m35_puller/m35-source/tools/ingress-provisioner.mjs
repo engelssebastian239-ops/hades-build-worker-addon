@@ -51,8 +51,11 @@ function peerAllowed(req) {
 }
 
 async function readBody(req) {
-  const announced = Number(req.headers['content-length']);
-  if (!Number.isInteger(announced) || announced < 1 || announced > MAX_BODY_BYTES) throw Error('invalid_body');
+  const lengthHeader = req.headers['content-length'];
+  const announced = lengthHeader === undefined ? null : Number(lengthHeader);
+  if (announced !== null && (!Number.isInteger(announced) || announced < 1 || announced > MAX_BODY_BYTES)) {
+    throw Error('invalid_body');
+  }
   const chunks = [];
   let total = 0;
   for await (const chunk of req) {
@@ -60,7 +63,7 @@ async function readBody(req) {
     if (total > MAX_BODY_BYTES) throw Error('body_too_large');
     chunks.push(chunk);
   }
-  if (total !== announced) throw Error('invalid_body');
+  if (announced !== null && total !== announced) throw Error('invalid_body');
   return Buffer.concat(chunks);
 }
 
