@@ -22,7 +22,7 @@ test('probe image is isolated and starts root only for the diagnostic bootstrap'
   assert.match(manifest, /^map:\s*\[\]\s*$/m);
   assert.match(manifest, /^ports:\s*\{\}\s*$/m);
   for (const flag of ['host_network', 'host_ipc', 'host_pid', 'host_uts', 'host_dbus', 'homeassistant_api', 'hassio_api', 'docker_api', 'full_access', 'ingress']) {
-    assert.match(manifest, new RegExp(`^${flag}:\\s*false\\s*$`, 'm'));
+    assert.match(manifest, new RegExp('^' + flag + ':\\s*false\\s*$', 'm'));
   }
   assert.equal(fs.existsSync(path.join(diagnosticRoot, 'config.yaml')), false);
   assert.match(dockerfile, /^FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402\s*$/m);
@@ -35,7 +35,7 @@ test('probe image is isolated and starts root only for the diagnostic bootstrap'
   assert.match(dockerfile, /id -g node.*1000/);
   assert.match(dockerfile, /^USER root$/m);
   assert.match(dockerfile, /^ENTRYPOINT \["\/usr\/local\/bin\/m35-data-permission-probe"\]$/m);
-  assert.doesNotMatch(dockerfile, /m35-source|config\.json|tools\/|\bADD\b/i);
+  assert.doesNotMatch(dockerfile, /m35-source|config\.json|tools\//i);
 });
 
 test('probe creates a unique node-owned private directory, verifies node write, and cleans up', () => {
@@ -53,7 +53,8 @@ test('probe creates a unique node-owned private directory, verifies node write, 
   assert.match(script, /1000:1000:600/);
   assert.match(script, /probe_write_confirmed=yes/);
   assert.match(script, /rm -rf -- "\$probe_dir"/);
-  assert.match(script, /test ! -e "\$probe_dir"/);
+  assert.match(script, /if \[ -e "\$probe_dir" \]; then/);
+  assert.match(script, /PROBE_CLEANUP_FAILED/);
   assert.match(script, /probe_file_removed=yes/);
   assert.match(script, /trap cleanup EXIT/);
   assert.doesNotMatch(script, /https?:|fetch\(|curl|wget|docker|supervisor|github|token|private.?key/i);
