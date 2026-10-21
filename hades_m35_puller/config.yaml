@@ -1,5 +1,5 @@
 name: "H.A.D.E.S. M3.5 Puller"
-version: "0.1.1"
+version: "0.2.0"
 slug: "hades_m35_puller"
 description: "Manual-start, intake-only M3.5 GitHub issue receipt poller."
 arch:
@@ -23,7 +23,8 @@ privileged: []
 devices: []
 map: []
 ports: {}
-ingress: false
+ingress: true
+ingress_port: 8099
 tmpfs: true
 ulimits:
   nofile: 128

@@ -29,7 +29,7 @@ test('root repository metadata and top-level app manifest make the puller discov
   assert.match(readApp('config.yaml'), /^slug:\s*"hades_m35_puller"\s*$/m);
 });
 
-test('app is manual-start, intake-only, and cannot execute issue content', () => {
+test('app is manual-start, intake-only, and reachable only through authenticated Home Assistant ingress', () => {
   const manifest = readApp('config.yaml');
   const config = JSON.parse(readApp('config.json'));
   const worker = readApp('m35-source/src/worker.mjs');
@@ -37,10 +37,14 @@ test('app is manual-start, intake-only, and cannot execute issue content', () =>
   const toolsDirectory = path.join(appRoot, 'm35-source/tools');
   const runScript = readApp('run.sh');
 
+  assert.match(manifest, /^version:\s*"0\.2\.0"\s*$/m);
   assert.match(manifest, /^boot:\s*manual_only\s*$/m);
   assert.match(manifest, /^arch:\n  - aarch64\n  - amd64\s*$/m);
   assert.match(manifest, /^map:\s*\[\]\s*$/m);
-  for (const flag of ['host_network', 'host_ipc', 'host_pid', 'host_uts', 'homeassistant_api', 'hassio_api', 'docker_api', 'full_access', 'ingress']) {
+  assert.match(manifest, /^ports:\s*\{\}\s*$/m);
+  assert.match(manifest, /^ingress:\s*true\s*$/m);
+  assert.match(manifest, /^ingress_port:\s*8099\s*$/m);
+  for (const flag of ['host_network', 'host_ipc', 'host_pid', 'host_uts', 'host_dbus', 'homeassistant_api', 'hassio_api', 'docker_api', 'full_access']) {
     assert.match(manifest, new RegExp(`^${flag}:\\s*false\\s*$`, 'm'));
   }
   assert.equal(config.mode, 'intake-only');
@@ -49,7 +53,7 @@ test('app is manual-start, intake-only, and cannot execute issue content', () =>
   assert.doesNotMatch(worker, /child_process|execSync|spawn\(/);
   assert.ok(fs.existsSync(path.join(toolsDirectory, 'encrypt-github-token.mjs')));
   assert.equal(fs.readdirSync(toolsDirectory).some(file => file.endsWith('.ps1')), false);
-  assert.match(runScript, /worker\.mjs --loop/);
+  assert.match(runScript, /ingress-provisioner\.mjs/);
   assert.match(runScript, /root_bootstrap_required/);
   assert.match(runScript, /chown node:node -- "\$directory"/);
   assert.match(runScript, /chmod 0700 -- "\$directory"/);
@@ -70,7 +74,7 @@ test('Node 22 Alpine OCI index is pinned and declares ARM64', () => {
   assert.match(dockerfile, /^USER root$/m);
 });
 
-test('provisioner requires an independently supplied fingerprint and verifies it before reading the private key', () => {
+test('legacy provisioner still requires an independently supplied fingerprint', () => {
   const source = readApp('m35-source/tools/provision-github-token.mjs');
   const verify = source.indexOf('assertTrustedPublicKeyFingerprint(publicKeyDocument,trustedFingerprint)');
   const privateKeyRead = source.indexOf("fs.readFileSync(keyFile,'utf8')");

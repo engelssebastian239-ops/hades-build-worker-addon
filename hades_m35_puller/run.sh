@@ -71,10 +71,12 @@ fi
 if [ "$(stat -c '%u:%a' "$state_dir")" != '1000:700' ]; then
   blocked state_directory_permissions
 fi
-if [ ! -f "$token_file" ] || [ -L "$token_file" ] || \
-   [ "$(stat -c '%u:%a' "$token_file")" != '1000:600' ]; then
-  blocked credential_missing_or_insecure
+if [ -e "$token_file" ] || [ -L "$token_file" ]; then
+  if [ ! -f "$token_file" ] || [ -L "$token_file" ] || \
+     [ "$(stat -c '%u:%a' "$token_file")" != '1000:600' ]; then
+    blocked credential_missing_or_insecure
+  fi
 fi
 
 export HOME=/home/node USER=node LOGNAME=node
-exec su-exec 1000:1000 node /opt/hades-m35-puller/src/worker.mjs --loop
+exec su-exec 1000:1000 node /opt/hades-m35-puller/tools/ingress-provisioner.mjs
