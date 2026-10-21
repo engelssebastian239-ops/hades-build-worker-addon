@@ -53,7 +53,9 @@ test('permission probe is a diagnostic-only image for the existing puller add-on
   assert.match(manifest, /^boot:\s*manual_only\s*$/m);
   assert.match(manifest, /^map:\s*\[\]\s*$/m);
   assert.match(manifest, /^ports:\s*\{\}\s*$/m);
-  for (const flag of ['host_network', 'host_ipc', 'host_pid', 'host_uts', 'host_dbus', 'homeassistant_api', 'hassio_api', 'docker_api', 'full_access', 'ingress']) {
+  assert.match(manifest, /^ingress:\s*true\s*$/m);
+  assert.match(manifest, /^ingress_port:\s*8099\s*$/m);
+  for (const flag of ['host_network', 'host_ipc', 'host_pid', 'host_uts', 'host_dbus', 'homeassistant_api', 'hassio_api', 'docker_api', 'full_access']) {
     assert.match(manifest, new RegExp(`^${flag}:\\s*false\\s*$`, 'm'));
   }
   assert.equal(fs.existsSync(path.join(diagnosticRoot, 'config.yaml')), false);
