@@ -15,7 +15,7 @@ function read(relativePath) {
 
 test('probe image is isolated and starts root only for the diagnostic bootstrap', () => {
   const manifest = fs.readFileSync(path.join(appRoot, 'config.yaml'), 'utf8');
-  const dockerfile = read('Dockerfile');
+  const dockerfile = fs.readFileSync(path.join(appRoot, 'Dockerfile'), 'utf8');
 
   assert.match(manifest, /^slug:\s*"hades_m35_puller"\s*$/m);
   assert.match(manifest, /^boot:\s*manual_only\s*$/m);
