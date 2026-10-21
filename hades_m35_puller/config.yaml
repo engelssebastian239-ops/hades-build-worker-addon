@@ -1,0 +1,29 @@
+name: "H.A.D.E.S. M3.5 Puller"
+version: "0.1.1"
+slug: "hades_m35_puller"
+description: "Manual-start, intake-only M3.5 GitHub issue receipt poller."
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: manual_only
+stage: experimental
+init: false
+host_network: false
+host_ipc: false
+host_pid: false
+host_uts: false
+host_dbus: false
+homeassistant_api: false
+hassio_api: false
+docker_api: false
+full_access: false
+apparmor: true
+privileged: []
+devices: []
+map: []
+ports: {}
+ingress: false
+tmpfs: true
+ulimits:
+  nofile: 128
