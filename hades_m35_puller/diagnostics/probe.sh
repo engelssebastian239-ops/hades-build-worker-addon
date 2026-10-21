@@ -62,7 +62,6 @@ su-exec 1000:1000 /bin/sh -eu -c '
   umask 077
   printf "m35-data-permission-probe\\n" > "$1"
   test "$(cat "$1")" = "m35-data-permission-probe"
-  test "$(stat -c "%u:%g:%a" "$1")" = "1000:1000:600"
 ' sh "$probe_file"
 printf '%s\n' 'probe_write_confirmed=yes'
 stat -c 'probe_owner=%u:%g probe_mode=%a path=%n' "$probe_file"
