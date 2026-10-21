@@ -86,7 +86,7 @@ test('legacy provisioner still requires an independently supplied fingerprint', 
 
 test('trusted fingerprint accepts only the independently matching public key', () => {
   const pair = crypto.generateKeyPairSync('rsa', { modulusLength: 3072 });
-  const document = createPublicKeyDocument(pair.publicKey.export({ type: 'spki', format: 'der' }));
+  const document = createPublicKeyDocument(pair.publicKey.export({ type: 'spki', format: 'pem' }));
   const serialized = JSON.stringify(document);
 
   assert.equal(assertTrustedPublicKeyFingerprint(serialized, document.publicKeySha256), document.publicKeySha256);
