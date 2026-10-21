@@ -7,8 +7,12 @@ COPY m35-source/tools/ ./tools/
 COPY config.json ./config.json
 COPY run.sh /usr/local/bin/run-hades-m35-puller
 
-RUN test "$(id -u node)" = "1000" \
+RUN apk add --no-cache su-exec \
+    && test "$(id -u node)" = "1000" \
+    && test "$(id -g node)" = "1000" \
     && chmod 0555 /usr/local/bin/run-hades-m35-puller
 
-USER node:node
+# The entrypoint performs a narrow data-directory bootstrap, then runs the
+# worker as UID/GID 1000 via su-exec. Secrets are not read while root.
+USER root
 ENTRYPOINT ["/usr/local/bin/run-hades-m35-puller"]
