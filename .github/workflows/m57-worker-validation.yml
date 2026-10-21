@@ -1,4 +1,4 @@
-name: M5.7 Worker Candidate Validation
+name: H.A.D.E.S. Add-on ARM64 Validation
 
 on:
   pull_request:
@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: m57-worker-validation-${{ github.ref }}
+  group: hades-addon-arm64-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   arm64-tests-and-build:
-    name: ARM64 regression and isolated image build
+    name: Regression tests and isolated ARM64 image builds
     if: github.event.pull_request.head.repo.full_name == 'engelssebastian239-ops/hades-build-worker-addon'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
@@ -35,9 +35,17 @@ jobs:
       - name: Worker full regression suite
         run: npm test
       - name: Worker syntax checks
-        run: npm run syntax
+        run: |
+          set -eu
+          npm run syntax
+          sh -n hades_m35_puller/run.sh
       - name: Build ARM64 Home Assistant Worker image (do not publish)
         run: |
           set -eu
           docker build --progress=plain --tag hades-worker:m57-ci ./hades_build_worker
           docker image inspect hades-worker:m57-ci --format '{{.Architecture}} {{.Os}}'
+      - name: Build ARM64 H.A.D.E.S. M3.5 Puller image (do not publish)
+        run: |
+          set -eu
+          docker build --progress=plain --tag hades-m35-puller:ci ./hades_m35_puller
+          test "$(docker image inspect hades-m35-puller:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
