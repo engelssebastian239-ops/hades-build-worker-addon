@@ -1,5 +1,5 @@
 name: "H.A.D.E.S. M3.5 /data Permission Probe (Temporary)"
-version: "0.1.0"
+version: "0.1.1"
 slug: "hades_m35_puller"
 description: "Temporary UID/GID 1000 write test for the Supervisor-managed /data mount. Does not run the Puller."
 arch:
