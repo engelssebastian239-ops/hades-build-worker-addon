@@ -26,7 +26,7 @@ test('signed STATUS_CHECK completes from broker request through worker response 
     const verified=verifyResponse(response,worker.publicKey,
       {brokerId,workerId,taskId,jobId,nonce,kind:'STATUS_CHECK',expiresAt:request.expiresAt});
     assert.equal(verified.state,'COMPLETED');
-    assert.deepEqual(verified.result,{component:'HADES_BUILD_WORKER',version:'0.0.6-dev.m5.12',
+    assert.deepEqual(verified.result,{component:'HADES_BUILD_WORKER',version:'0.0.6-dev.m5.13',
       state:'READY',executionEnabled:false,uptimeSeconds:0});
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });

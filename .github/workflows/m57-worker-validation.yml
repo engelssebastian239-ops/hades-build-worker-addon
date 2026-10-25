@@ -16,22 +16,27 @@ jobs:
   arm64-tests-and-build:
     name: Regression tests and isolated ARM64 image builds
     if: github.event.pull_request.head.repo.full_name == 'engelssebastian239-ops/hades-build-worker-addon'
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout candidate with no persisted credentials
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Set up QEMU for ARM64 image builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Check architecture and version contract
+      - name: Check version contract
         run: |
           set -eu
-          test "$(uname -m)" = "aarch64"
-          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.6-dev.m5.12'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.7 verified candidate version',v)"
+          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.6-dev.m5.13'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.73 verified candidate version',v)"
       - name: Worker full regression suite
         run: npm test
       - name: Worker syntax checks
@@ -42,10 +47,10 @@ jobs:
       - name: Build ARM64 Home Assistant Worker image (do not publish)
         run: |
           set -eu
-          docker build --progress=plain --tag hades-worker:m57-ci ./hades_build_worker
-          docker image inspect hades-worker:m57-ci --format '{{.Architecture}} {{.Os}}'
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-worker:m57-ci ./hades_build_worker
+          test "$(docker image inspect hades-worker:m57-ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
       - name: Build ARM64 H.A.D.E.S. M3.5 Puller image (do not publish)
         run: |
           set -eu
-          docker build --progress=plain --tag hades-m35-puller:ci ./hades_m35_puller
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-m35-puller:ci ./hades_m35_puller
           test "$(docker image inspect hades-m35-puller:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'

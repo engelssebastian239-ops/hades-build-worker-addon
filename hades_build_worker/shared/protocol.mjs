@@ -42,7 +42,7 @@ function requestFields(value, now) {
 function resultValid(kind, result) {
   if (kind === 'STATUS_CHECK')
     return exactObject(result, ['component','version','state','executionEnabled','uptimeSeconds']) &&
-      result.component === 'HADES_BUILD_WORKER' && ['0.0.4-dev.m4.2.5','0.0.5-dev.m5.6','0.0.6-dev.m5.12'].includes(result.version) &&
+      result.component === 'HADES_BUILD_WORKER' && ['0.0.4-dev.m4.2.5','0.0.5-dev.m5.6','0.0.6-dev.m5.12','0.0.6-dev.m5.13'].includes(result.version) &&
       result.state === 'READY' && result.executionEnabled === false &&
       Number.isSafeInteger(result.uptimeSeconds) && result.uptimeSeconds >= 0;
   if (kind === 'HEARTBEAT_CHECK')
