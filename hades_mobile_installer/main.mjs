@@ -13,7 +13,7 @@ function options(){
   return value;
 }
 function writeJson(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(value));}
-function readBody(req,maxBytes){return new Promise((resolve,reject)=>{let length=0;const chunks=[];req.setTimeout(30_000,()=>{req.destroy();reject(Error('request_timeout'));});req.on('data',chunk=>{length+=chunk.length;if(length>maxBytes){req.destroy();reject(Error('request_too_large'));return;}chunks.push(chunk);});req.on('end',()=>resolve(Buffer.concat(chunks)));req.on('error',()=>reject(Error('request_read_failed')));});}
+export function readBody(req,maxBytes){return new Promise((resolve,reject)=>{let length=0,settled=false;const cleanup=()=>{req.setTimeout(0);req.removeListener('data',onData);req.removeListener('end',onEnd);req.removeListener('error',onError);};const finish=(error,value)=>{if(settled)return;settled=true;cleanup();if(error)reject(error);else resolve(value);};const onData=chunk=>{length+=chunk.length;if(length>maxBytes){req.destroy();finish(Error('request_too_large'));return;}chunks.push(chunk);};const onEnd=()=>finish(null,Buffer.concat(chunks));const onError=()=>finish(Error('request_read_failed'));const chunks=[];req.setTimeout(30_000,()=>{req.destroy();finish(Error('request_timeout'));});req.on('data',onData);req.on('end',onEnd);req.on('error',onError);});}
 function createHttpServer(installer){
   let windowStart=Date.now(),count=0,active=0;
   return http.createServer(async(req,res)=>{

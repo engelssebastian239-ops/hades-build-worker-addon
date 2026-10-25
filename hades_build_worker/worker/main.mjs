@@ -5,6 +5,7 @@ import {createPrivateKey,createPublicKey,generateKeyPairSync} from 'node:crypto'
 import {VERSION,MAX_MESSAGE_BYTES,QUEUE_CAPACITY,identityId,verifyRequest,signResponse,replayKey,requestDigest} from '../shared/protocol.mjs';
 import {createPackageStageReceiver,MAX_ARCHIVE_BYTES} from './package-stage.mjs';
 import {createGithubPullProvisioner,createGithubPullTransport,GITHUB_PULL_TOKEN_FILE,GITHUB_PULL_LEDGER_FILE,GITHUB_PULL_INGRESS_PORT,loadGithubPullToken,startGithubPullLoop} from './github-pull.mjs';
+import {createMobileInstallRuntime} from './mobile-install-runtime.mjs';
 
 const MAX_LEDGER=2048;
 const HTTP_PATH='/v1/diagnostic';
@@ -117,7 +118,10 @@ function parseOptions(file) {
   if(typeof options.enabled!=='boolean'||(options.package_stage_enabled!==undefined&&typeof options.package_stage_enabled!=='boolean')||!Number.isInteger(options.listen_port)||
       options.listen_port<1024||options.listen_port>65535||
       typeof options.trusted_broker_id!=='string'||typeof options.trusted_broker_public_key!=='string'||
-      (options.github_pull_enabled!==undefined&&typeof options.github_pull_enabled!=='boolean'))
+      (options.github_pull_enabled!==undefined&&typeof options.github_pull_enabled!=='boolean')||
+      (options.mobile_install_enabled!==undefined&&typeof options.mobile_install_enabled!=='boolean')||
+      (options.mobile_install_adapter_id!==undefined&&typeof options.mobile_install_adapter_id!=='string')||
+      (options.mobile_install_adapter_public_key!==undefined&&typeof options.mobile_install_adapter_public_key!=='string'))
     throw Error('options_invalid');
   return options;
 }
@@ -181,31 +185,63 @@ export async function main() {
     workerPrivateKey:privateKey,
     ledgerPath:process.env.HADES_LEDGER_PATH||'/data/hades-m42.4/diagnostic-ledger.json'
   });
-  let stopGithubPull=null;
+  let stopGithubPull=null,stopMobileInstall=null,pendingMobileRuntime=null;
   let githubPullProvisioner=null;
-  const activateGithubPull=async token=>{
-    const transport=createGithubPullTransport({token,brokerId:options.trusted_broker_id,workerId:receiver.workerId,
-      workerPublicKey:publicKey,receiver,ledgerPath:GITHUB_PULL_LEDGER_FILE});
-    await transport.verifyConnection();
-    if(stopGithubPull) return;
-    stopGithubPull=startGithubPullLoop(transport,{pollSeconds:120,log:event=>console.log(JSON.stringify(event))});
-    console.log(JSON.stringify({state:'GITHUB_PULL_READY',repository:'engelssebastian239-ops/hades-hermes-queue',pollSeconds:120,
-      requestKinds:['STATUS_CHECK','HEARTBEAT_CHECK','QUEUE_HEALTH_CHECK'],executionEnabled:false}));
+  const createMobileRuntime=token=>createMobileInstallRuntime({enabled:true,token,workerPrivateKey:privateKey,
+    adapterId:options.mobile_install_adapter_id,adapterPublicKey:options.mobile_install_adapter_public_key,
+    log:event=>console.log(JSON.stringify(event))});
+  const validateProvisionedToken=async token=>{
+    if(options.mobile_install_enabled!==true)return;
+    const candidate=createMobileRuntime(token);
+    try{await candidate.verifyConnection();pendingMobileRuntime=candidate;}
+    catch(error){pendingMobileRuntime=null;throw error;}
   };
-  if(options.github_pull_enabled===true){
+  const activateConfiguredPulls=async token=>{
+    if(options.github_pull_enabled===true&&!stopGithubPull){
+      try{
+        const transport=createGithubPullTransport({token,brokerId:options.trusted_broker_id,workerId:receiver.workerId,
+          workerPublicKey:publicKey,receiver,ledgerPath:GITHUB_PULL_LEDGER_FILE});
+        await transport.verifyConnection();
+        stopGithubPull=startGithubPullLoop(transport,{pollSeconds:120,log:event=>console.log(JSON.stringify(event))});
+        console.log(JSON.stringify({state:'GITHUB_PULL_READY',repository:'engelssebastian239-ops/hades-hermes-queue',pollSeconds:120,
+          requestKinds:['STATUS_CHECK','HEARTBEAT_CHECK','QUEUE_HEALTH_CHECK'],executionEnabled:false}));
+      }catch(error){console.error(JSON.stringify({state:'GITHUB_PULL_BLOCKED',error:/^[a-z0-9_]+$/i.test(error?.code||'')?error.code:'github_pull_startup_failed'}));}
+    }
+    if(options.mobile_install_enabled===true&&!stopMobileInstall){
+      try{
+        const runtime=pendingMobileRuntime||createMobileRuntime(token);pendingMobileRuntime=null;
+        if(!runtime.snapshot().ready)await runtime.verifyConnection();
+        runtime.start();stopMobileInstall=()=>runtime.stop();
+        console.log(JSON.stringify({state:'MOBILE_INSTALL_PULL_READY',enabled:true,writeState:'UNVERIFIED',pollSeconds:120,
+          actions:['PLAN_M574','INSTALL_M574'],target:'local_hades_m2_mobile'}));
+      }catch(error){pendingMobileRuntime=null;console.error(JSON.stringify({state:'MOBILE_INSTALL_PULL_BLOCKED',error:/^[a-z0-9_]+$/i.test(error?.code||'')?error.code:'mobile_install_startup_failed'}));}
+    }
+  };
+  if(options.github_pull_enabled===true||options.mobile_install_enabled===true){
     if(!options.trusted_broker_id||!options.trusted_broker_public_key)
-      throw Error('github_pull_requires_diagnostic_identity');
-    githubPullProvisioner=createGithubPullProvisioner({onProvisioned:activateGithubPull});
+      throw Error('pull_requires_worker_identity');
+    githubPullProvisioner=createGithubPullProvisioner({mobileInstallEnabled:options.mobile_install_enabled===true,
+      validateToken:validateProvisionedToken,onProvisioned:activateConfiguredPulls});
     githubPullProvisioner.listen(GITHUB_PULL_INGRESS_PORT,'0.0.0.0');
     githubPullProvisioner.on('error',()=>console.error(JSON.stringify({state:'GITHUB_PULL_PROVISIONER_BLOCKED',error:'ingress_listener_unavailable'})));
-    await new Promise((resolve,reject)=>{githubPullProvisioner.once('listening',resolve);githubPullProvisioner.once('error',reject);});
-    console.log(JSON.stringify({state:'GITHUB_PULL_PROVISIONER_READY',ingressOnly:true,port:GITHUB_PULL_INGRESS_PORT,credentialStored:false}));
-    try {
-      const token=loadGithubPullToken(GITHUB_PULL_TOKEN_FILE);
-      await activateGithubPull(token);
-    } catch(error) {
-      if(error.code==='ENOENT') console.log(JSON.stringify({state:'GITHUB_PULL_SETUP_REQUIRED',ingressOnly:true}));
-      else console.error(JSON.stringify({state:'GITHUB_PULL_BLOCKED',error:/^[a-z0-9_]+$/i.test(error.code||'')?error.code:'github_pull_startup_failed'}));
+    let provisionerReady=false;
+    try{await new Promise((resolve,reject)=>{githubPullProvisioner.once('listening',resolve);githubPullProvisioner.once('error',reject);});provisionerReady=true;}
+    catch(error){
+      if(options.mobile_install_enabled===true&&options.github_pull_enabled!==true){
+        console.error(JSON.stringify({state:'MOBILE_INSTALL_PROVISIONER_BLOCKED',error:'ingress_listener_unavailable'}));
+        githubPullProvisioner=null;
+      }else throw error;
+    }
+    if(provisionerReady){
+      console.log(JSON.stringify({state:'GITHUB_PULL_PROVISIONER_READY',ingressOnly:true,port:GITHUB_PULL_INGRESS_PORT,credentialStored:false,
+        mobileInstallEnabled:options.mobile_install_enabled===true}));
+      try {
+        const token=loadGithubPullToken(GITHUB_PULL_TOKEN_FILE);
+        await activateConfiguredPulls(token);
+      } catch(error) {
+        if(error.code==='ENOENT') console.log(JSON.stringify({state:'GITHUB_PULL_SETUP_REQUIRED',ingressOnly:true}));
+        else console.error(JSON.stringify({state:'GITHUB_PULL_BLOCKED',error:/^[a-z0-9_]+$/i.test(error.code||'')?error.code:'github_pull_startup_failed'}));
+      }
     }
   }
   let packageStageReceiver=null;
@@ -233,6 +269,7 @@ export async function main() {
     host:'::',port:options.listen_port,executionEnabled:false,packageStageEnabled:!!packageStageReceiver,publicPort:false}));
   const stop=()=>{
     if(stopGithubPull) stopGithubPull();
+    if(stopMobileInstall) stopMobileInstall();
     githubPullProvisioner?.close();
     server.close(()=>process.exit(0));
   };

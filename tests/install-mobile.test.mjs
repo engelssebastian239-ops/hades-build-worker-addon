@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {createHash,generateKeyPairSync,sign,verify} from 'node:crypto';
 import {gzipSync} from 'node:zlib';
+import {EventEmitter} from 'node:events';
+import {readBody} from '../hades_mobile_installer/main.mjs';
 import {
   APPARMOR_PROFILE_NAME,APPARMOR_PROFILE_SHA256,INSTALL_COMMIT,INSTALL_PACKAGE_PATH,INSTALL_PROTOCOL,INSTALL_REPOSITORY,
   MAX_TTL_MS,SUPPORTED_SUPERVISOR_VERSIONS,TARGET_DIR,TARGET_SLUG,
@@ -46,6 +48,16 @@ function verifyResponse(response,adapterPublicKey){const fields=[response.protoc
 function fakeSupervisor({onBackup=()=>{},rebuild=async()=>{},preflight=async()=>({supervisorVersion:'2026.10.3',appVersion:'0.5.71-dev.m5.71'}),targetBuildRunning=async()=>false}={}){
   const calls=[];return {calls,async preflight(){calls.push('preflight');return preflight();},async createBackup(password,onStarted){calls.push('backup');assert.equal(typeof password,'string');onStarted({jobId:'job-fixed'});await onBackup();return 'backup-fixed';},async rebuild(){calls.push('rebuild');return rebuild();},async targetBuildRunning(){calls.push('jobs-info');return targetBuildRunning();}};
 }
+
+test('request body reader clears socket timeout and listeners after complete body',async()=>{
+  class FakeRequest extends EventEmitter{
+    setTimeout(milliseconds,callback){this.timeoutMs=milliseconds;this.timeoutCallback=milliseconds?callback:null;return this;}
+    destroy(){this.destroyed=true;return this;}
+  }
+  const req=new FakeRequest();const pending=readBody(req,16);req.emit('data',Buffer.from('complete'));req.emit('end');
+  assert.equal((await pending).toString(),'complete');assert.equal(req.timeoutMs,0);assert.equal(req.timeoutCallback,null);assert.equal(req.listenerCount('data'),0);assert.equal(req.listenerCount('end'),0);assert.equal(req.listenerCount('error'),0);
+  req.emit('timeout');assert.equal(req.destroyed,undefined);
+});
 
 test('installer publishes default-off, exact target and supported Supervisor version gates',()=>{
   assert.equal(TARGET_DIR,'/addons/hades_m2_mobile');assert.equal(TARGET_SLUG,'local_hades_m2_mobile');assert.deepEqual(SUPPORTED_SUPERVISOR_VERSIONS,['2026.10.3']);assert.ok(MAX_TTL_MS<=300_000);

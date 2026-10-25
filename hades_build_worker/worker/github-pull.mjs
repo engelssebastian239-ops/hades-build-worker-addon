@@ -137,16 +137,19 @@ function sendProvisionPage(res, status, body) {
 }
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const CONFIGURED_PAGE = `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>H.A.D.E.S. Build Worker</title><main><h1>GitHub Pull Transport</h1><p>Credential ist geschützt eingerichtet. Der Worker prüft ausschließlich signierte Diagnoseaufträge.</p></main></html>`;
-const SETUP_PAGE = csrf => `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>H.A.D.E.S. Build Worker</title><main><h1>GitHub Pull Transport</h1><p>Einmalige Einrichtung für das private H.A.D.E.S. Diagnose-Repository.</p><form method="post" action=""><input type="hidden" name="csrf" value="${csrf}"><label for="token">GitHub fine-grained token</label><input id="token" name="token" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" required><button type="submit">Prüfen und geschützt speichern</button></form><p>Erforderlich: Metadata read und Issues read/write für dieses Repository. Die Eingabe wird nicht protokolliert.</p></main></html>`;
+const CONFIGURED_PAGE = mobileInstallEnabled => `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>H.A.D.E.S. Build Worker</title><main><h1>GitHub Pull Transport</h1><p>Credential ist geschützt eingerichtet. Der Worker verarbeitet ausschließlich signierte, fest begrenzte Aufträge.${mobileInstallEnabled?' Mobile-Aufträge bleiben bis zum eigenen bestätigten PLAN-Kommentar schreibungeprüft.':''}</p></main></html>`;
+const SETUP_PAGE = (csrf,mobileInstallEnabled=false) => `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>H.A.D.E.S. Build Worker</title><main><h1>GitHub Pull Transport</h1><p>Einmalige Einrichtung für das private H.A.D.E.S. Repository.</p><form method="post" action=""><input type="hidden" name="csrf" value="${csrf}"><label for="token">GitHub fine-grained token</label><input id="token" name="token" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" required><button type="submit">Prüfen und geschützt speichern</button></form><p>Erforderlich: Metadata read und Issues read/write für dieses Repository.${mobileInstallEnabled?' Für Mobile zusätzlich Contents read und Actions read.':''} Die Eingabe wird nicht protokolliert.</p></main></html>`;
 
 export function createGithubPullProvisioner({
   tokenFile = GITHUB_PULL_TOKEN_FILE,
   fetchFn = globalThis.fetch,
   serverFactory = handler => http.createServer(handler),
   allowIngressPeer = req => String(req.socket?.remoteAddress ?? '').replace(/^::ffff:/, '') === '172.30.32.2',
+  mobileInstallEnabled = false,
+  validateToken = async () => {},
   onProvisioned = () => {}
 } = {}) {
+  if(typeof mobileInstallEnabled!=='boolean'||typeof validateToken!=='function')throw genericError('github_pull_provisioner_options_invalid');
   const csrf = crypto.randomBytes(32).toString('hex');
   let attempts = 0;
   let provisioning = false;
@@ -179,14 +182,14 @@ export function createGithubPullProvisioner({
     const pathname = ingressPath(req);
     req.setTimeout(5000, () => req.destroy());
     if (req.method === 'GET' && pathname === '/') {
-      try { loadGithubPullToken(tokenFile); return sendProvisionPage(res, 200, CONFIGURED_PAGE); }
+      try { loadGithubPullToken(tokenFile); return sendProvisionPage(res, 200, CONFIGURED_PAGE(mobileInstallEnabled)); }
       catch (error) {
         if (error.code !== 'ENOENT') return sendProvisionPage(res, 503, '<!doctype html><p>Credential-Status unsicher. Einrichtung blockiert.</p>');
-        return sendProvisionPage(res, 200, SETUP_PAGE(csrf));
+        return sendProvisionPage(res, 200, SETUP_PAGE(csrf,mobileInstallEnabled));
       }
     }
     if (req.method !== 'POST' || pathname !== '/') return sendProvisionPage(res, 404, '<!doctype html><p>Nicht gefunden.</p>');
-    try { loadGithubPullToken(tokenFile); return sendProvisionPage(res, 409, CONFIGURED_PAGE); }
+    try { loadGithubPullToken(tokenFile); return sendProvisionPage(res, 409, CONFIGURED_PAGE(mobileInstallEnabled)); }
     catch (error) { if (error.code !== 'ENOENT') return sendProvisionPage(res, 503, '<!doctype html><p>Credential-Status unsicher. Einrichtung blockiert.</p>'); }
     if (attempts >= 3) return sendProvisionPage(res, 429, '<!doctype html><p>Zu viele Versuche. Worker sicher neu starten.</p>');
     if (provisioning) return sendProvisionPage(res, 409, '<!doctype html><p>Prüfung läuft bereits.</p>');
@@ -197,7 +200,9 @@ export function createGithubPullProvisioner({
     let token = '';
     let tokenStored = false;
     try {
-      const parsed = await readLimitedForm(req);
+      let parsed;
+      try{parsed=await readLimitedForm(req);}
+      finally{req.setTimeout(0);}
       form = parsed.form;
       formBytes = parsed.bytes;
       if (form.getAll('csrf').length !== 1 || form.getAll('token').length !== 1 ||
@@ -208,6 +213,7 @@ export function createGithubPullProvisioner({
         throw genericError('github_pull_csrf_rejected');
       token = form.get('token') ?? '';
       await authCheck(token);
+      await validateToken(token);
       writeGithubPullToken(tokenFile, token);
       tokenStored = true;
       const savedToken = loadGithubPullToken(tokenFile);

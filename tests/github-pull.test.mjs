@@ -28,7 +28,7 @@ function tempDir(prefix = 'hades-github-pull-') {
 }
 
 function memoryProvisioner(options = {}) {
-  let handler;
+  let handler;const timeoutEvents=[];
   createGithubPullProvisioner({
     ...options,
     serverFactory: callback => { handler = callback; return {}; }
@@ -37,7 +37,7 @@ function memoryProvisioner(options = {}) {
     const raw = Buffer.from(body);
     const req = {
       method, url, headers: { ...(body ? { 'content-type': 'application/x-www-form-urlencoded', 'content-length': String(raw.length) } : {}) },
-      socket: { remoteAddress: peer }, setTimeout() {},
+      socket: { remoteAddress: peer }, setTimeout(ms) { timeoutEvents.push(ms); },
       async *[Symbol.asyncIterator]() { if (raw.length) yield raw; }
     };
     const result = { status: 0, headers: {}, body: '' };
@@ -47,7 +47,7 @@ function memoryProvisioner(options = {}) {
     };
     await handler(req, res);
     return result;
-  } };
+  },timeoutEvents };
 }
 
 function requestFixture({ broker, worker, now, kind = 'STATUS_CHECK', changes = {} }) {
@@ -128,6 +128,29 @@ test('Ingress setup requires the Supervisor peer and CSRF, verifies fixed owner/
   assert.equal(calls.length, 3);
   assert.equal(denied.status, 403);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('optional Mobile read preflight runs before shared credential persistence',async t=>{
+  await t.test('preflight rejection leaves no token file',async()=>{
+    const dir=tempDir(),tokenFile=path.join(dir,'github-pull-token'),order=[];
+    const provisioner=memoryProvisioner({tokenFile,mobileInstallEnabled:true,
+      fetchFn:async url=>{assert.equal(provisioner.timeoutEvents.at(-1),0);return url.endsWith('/user')?jsonResponse({login:GITHUB_OWNER}):url.endsWith(`/repos/${GITHUB_REPOSITORY}`)?jsonResponse({full_name:GITHUB_REPOSITORY,private:true}):jsonResponse([]);},
+      validateToken:async()=>{order.push('preflight');assert.equal(provisioner.timeoutEvents.at(-1),0);assert.equal(fs.existsSync(tokenFile),false);await new Promise(resolve=>setTimeout(resolve,10));throw Object.assign(Error('mobile preflight rejected'),{code:'mobile_github_contents_read_unverified'});}});
+    const page=await provisioner.request();assert.match(page.body,/Contents read und Actions read/);
+    const csrf=/name="csrf" value="([a-f0-9]{64})"/.exec(page.body)[1];
+    const response=await provisioner.request({method:'POST',body:new URLSearchParams({csrf,token}).toString()});
+    assert.equal(response.status,400);assert.deepEqual(order,['preflight']);assert.equal(provisioner.timeoutEvents.at(-1),0);assert.equal(fs.existsSync(tokenFile),false);assert.doesNotMatch(response.body,new RegExp(token));fs.rmSync(dir,{recursive:true,force:true});
+  });
+  await t.test('successful preflight completes before file exists, then stores mode 0600',async()=>{
+    const dir=tempDir(),tokenFile=path.join(dir,'github-pull-token'),order=[];
+    const provisioner=memoryProvisioner({tokenFile,mobileInstallEnabled:true,
+      fetchFn:async url=>url.endsWith('/user')?jsonResponse({login:GITHUB_OWNER}):url.endsWith(`/repos/${GITHUB_REPOSITORY}`)?jsonResponse({full_name:GITHUB_REPOSITORY,private:true}):jsonResponse([]),
+      validateToken:async()=>{order.push('preflight');assert.equal(fs.existsSync(tokenFile),false);},
+      onProvisioned:async()=>{order.push('persisted');assert.equal(fs.statSync(tokenFile).mode&0o777,0o600);}});
+    const page=await provisioner.request(),csrf=/name="csrf" value="([a-f0-9]{64})"/.exec(page.body)[1];
+    const response=await provisioner.request({method:'POST',body:new URLSearchParams({csrf,token}).toString()});
+    assert.equal(response.status,200);assert.deepEqual(order,['preflight','persisted']);assert.equal(loadGithubPullToken(tokenFile),token);fs.rmSync(dir,{recursive:true,force:true});
+  });
 });
 
 test('provisioner rejects wrong GitHub owner and leaves no credential file', async () => {

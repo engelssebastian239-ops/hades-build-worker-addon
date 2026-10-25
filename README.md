@@ -1,5 +1,7 @@
 # H.A.D.E.S. Build Worker
 
+The separately scoped Mobile install pull candidate is documented in [M576 Mobile install pull](docs/M576-MOBILE-INSTALL-PULL.md). It remains default-off and is not a completed Plus-to-Miner installation route.
+
 A Home Assistant app repository with a read-only diagnostic receiver.
 
 ## Safety defaults

@@ -39,19 +39,31 @@ jobs:
       - name: Check version contract
         run: |
           set -eu
-          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.6-dev.m5.13'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.73 verified candidate version',v)"
+          node -e "const fs=require('fs'); const yaml=fs.readFileSync('hades_build_worker/config.yaml','utf8'); const v=yaml.match(/^version: \"([^\"]+)\"/m)?.[1]; if(v!=='0.0.6-dev.m5.13'||JSON.parse(fs.readFileSync('package.json','utf8')).version!==v)process.exit(1); console.log('M5.13 verified candidate version',v)"
       - name: Worker full regression suite
         run: npm test
       - name: Worker syntax checks
         run: |
           set -eu
           npm run syntax
+          node --check hades_build_worker/worker/mobile-install-plan.mjs
+          node --check hades_build_worker/worker/mobile-install-queue.mjs
+          node --check hades_build_worker/worker/mobile-install-receipt.mjs
+          node --check hades_build_worker/worker/mobile-install-client.mjs
+          node --check hades_build_worker/worker/mobile-install-store.mjs
+          node --check hades_build_worker/worker/mobile-install-controller.mjs
+          node --check hades_build_worker/worker/mobile-install-github.mjs
+          node --check hades_build_worker/worker/mobile-install-runtime.mjs
           sh -n hades_m35_puller/run.sh
       - name: Build ARM64 Home Assistant Worker image (do not publish)
         run: |
           set -eu
           docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-worker:m57-ci ./hades_build_worker
           test "$(docker image inspect hades-worker:m57-ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Import actual Worker runtime graph in restricted ARM64 image
+        run: |
+          set -eu
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --user 10001:10001 --entrypoint /usr/bin/node hades-worker:m57-ci --input-type=module -e "await import('file:///opt/hades-m42.5/worker/main.mjs'); console.log('Worker runtime module graph loaded')"
       - name: Build ARM64 H.A.D.E.S. M3.5 Puller image (do not publish)
         run: |
           set -eu

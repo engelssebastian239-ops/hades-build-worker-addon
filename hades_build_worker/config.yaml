@@ -31,6 +31,9 @@ options:
   enabled: false
   package_stage_enabled: false
   github_pull_enabled: false
+  mobile_install_enabled: false
+  mobile_install_adapter_id: ""
+  mobile_install_adapter_public_key: ""
   listen_port: 8765
   trusted_broker_id: ""
   trusted_broker_public_key: ""
@@ -38,6 +41,9 @@ schema:
   enabled: bool
   package_stage_enabled: bool
   github_pull_enabled: bool
+  mobile_install_enabled: bool
+  mobile_install_adapter_id: str
+  mobile_install_adapter_public_key: str
   listen_port: int
   trusted_broker_id: str
   trusted_broker_public_key: str
