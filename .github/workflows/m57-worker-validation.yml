@@ -54,3 +54,12 @@ jobs:
           set -eu
           docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-m35-puller:ci ./hades_m35_puller
           test "$(docker image inspect hades-m35-puller:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Build ARM64 scoped Mobile installer image (do not publish)
+        run: |
+          set -eu
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-mobile-installer:m575-ci ./hades_mobile_installer
+          test "$(docker image inspect hades-mobile-installer:m575-ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Import installer runtime in restricted image
+        run: |
+          set -eu
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --user 10001:10001 --entrypoint /usr/bin/node hades-mobile-installer:m575-ci --input-type=module -e "const m=await import('file:///opt/hades-m575/installer.mjs'); if(m.INSTALL_PROTOCOL!=='HADES_MOBILE_M574_INSTALL_V1'||m.TARGET_DIR!=='/addons/hades_m2_mobile') process.exit(1); console.log('M575 installer module graph loaded')"
