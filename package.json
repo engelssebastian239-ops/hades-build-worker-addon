@@ -1,10 +1,10 @@
 {
   "name": "hades-build-worker-addon",
-  "version": "0.0.6-dev.m5.12",
+  "version": "0.0.6-dev.m5.13",
   "private": false,
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "syntax": "node --check hades_build_worker/worker/launcher.mjs && node --check hades_build_worker/worker/main.mjs && node --check hades_build_worker/worker/package-stage.mjs && node --check hades_build_worker/shared/protocol.mjs"
+    "syntax": "node --check hades_build_worker/worker/launcher.mjs && node --check hades_build_worker/worker/main.mjs && node --check hades_build_worker/worker/package-stage.mjs && node --check hades_build_worker/worker/github-pull.mjs && node --check hades_build_worker/shared/protocol.mjs && node --check hades_build_worker/tools/create-diagnostic-broker-key.mjs && node --check hades_build_worker/tools/sign-diagnostic-request.mjs && node --check hades_m35_puller/m35-source/tools/ingress-provisioner.mjs && node --check hades_mobile_installer/installer.mjs && node --check hades_mobile_installer/main.mjs && node --check tools/package-mobile-m574.mjs"
   }
 }
