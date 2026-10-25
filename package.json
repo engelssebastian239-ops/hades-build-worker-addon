@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "syntax": "node --check hades_build_worker/worker/launcher.mjs && node --check hades_build_worker/worker/main.mjs && node --check hades_build_worker/worker/package-stage.mjs && node --check hades_build_worker/shared/protocol.mjs"
+    "syntax": "node --check hades_mobile_build_worker/worker/launcher.mjs && node --check hades_mobile_build_worker/worker/main.mjs && node --check hades_mobile_build_worker/worker/mobile-install-plan.mjs && node --check hades_mobile_build_worker/worker/mobile-install-queue.mjs && node --check hades_mobile_build_worker/worker/mobile-install-github.mjs && node --check hades_mobile_build_worker/worker/mobile-install-store.mjs && node --check hades_mobile_build_worker/worker/mobile-install-receipt.mjs && node --check hades_mobile_build_worker/worker/mobile-install-client.mjs && node --check hades_mobile_build_worker/worker/mobile-install-controller.mjs && node --check hades_mobile_build_worker/worker/mobile-install-runtime.mjs && node --check hades_mobile_build_worker/worker/mobile-credential-provisioner.mjs && node --check hades_mobile_build_worker/shared/identity.mjs && node --check hades_mobile_build_worker/shared/protocol.mjs && node --check hades_mobile_installer/main.mjs && node --check hades_mobile_installer/installer.mjs && node --check tools/hash-m577-source.mjs"
   }
 }

@@ -1,0 +1,64 @@
+name: H.A.D.E.S. M577 isolated Mobile worker validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hades-m577-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    if: github.event.pull_request.head.repo.full_name == 'engelssebastian239-ops/hades-build-worker-addon'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+          cache-image: false
+      - uses: docker/setup-buildx-action@v3
+        with:
+          cache-binary: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Tests and syntax
+        run: |
+          npm test
+          npm run syntax
+      - name: Hash exact public source revision and bounded package manifests
+        env:
+          M577_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: node tools/hash-m577-source.mjs
+      - name: Build existing Worker without publishing
+        run: |
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-existing-worker:ci ./hades_build_worker
+          test "$(docker image inspect hades-existing-worker:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Build M35 Puller without publishing
+        run: |
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-m35:ci ./hades_m35_puller
+          test "$(docker image inspect hades-m35:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Build isolated M577 Worker without publishing
+        run: |
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-mobile-plan-worker:ci ./hades_mobile_build_worker
+          test "$(docker image inspect hades-mobile-plan-worker:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Import actual Worker entry graph in restricted image
+        run: |
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --user 10001:10001 --entrypoint /usr/bin/node hades-mobile-plan-worker:ci --input-type=module -e "await import('file:///opt/hades-mobile-plan-worker/worker/main.mjs'); console.log('M577 Worker module graph loaded')"
+      - name: Build isolated scoped Installer without publishing
+        run: |
+          docker buildx build --platform linux/arm64 --load --progress=plain --tag hades-m574-installer:ci ./hades_mobile_installer
+          test "$(docker image inspect hades-m574-installer:ci --format '{{.Architecture}} {{.Os}}')" = 'arm64 linux'
+      - name: Import Installer module in restricted image
+        run: |
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --user 10001:10001 --entrypoint /usr/bin/node hades-m574-installer:ci --input-type=module -e "const m=await import('file:///opt/hades-m574-installer/installer.mjs'); if(m.INSTALL_PROTOCOL!=='HADES_MOBILE_M574_INSTALL_V1'||m.TARGET_DIR!=='/addons/hades_m2_mobile') process.exit(1); console.log('M574 Installer module graph loaded')"

@@ -1,0 +1,42 @@
+name: "H.A.D.E.S. M574 Mobile Installer"
+version: "0.1.0"
+slug: "hades_m574_installer"
+description: "Installs only the pinned M574 Mobile frontend asset hotfix."
+arch:
+  - aarch64
+startup: application
+boot: manual_only
+stage: experimental
+init: false
+host_network: false
+host_ipc: false
+host_pid: false
+host_uts: false
+homeassistant_api: false
+hassio_api: true
+hassio_role: manager
+docker_api: false
+full_access: false
+apparmor: true
+privileged: []
+devices: []
+map:
+  - type: local_apps
+    path: /addons
+    read_only: false
+ports: {}
+ports_description: {}
+ingress: true
+ingress_port: 8767
+panel_admin: true
+tmpfs: true
+ulimits:
+  nofile: 128
+options:
+  enabled: false
+  trusted_broker_id: ""
+  trusted_broker_public_key: ""
+schema:
+  enabled: bool
+  trusted_broker_id: str
+  trusted_broker_public_key: str
