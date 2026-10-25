@@ -1,5 +1,5 @@
 name: "H.A.D.E.S. Build Worker"
-version: "0.0.6-dev.m5.12"
+version: "0.0.6-dev.m5.13"
 slug: "hades_build_worker"
 description: "Read-only signed H.A.D.E.S. diagnostics. Arbitrary code execution is disabled."
 arch:
@@ -22,19 +22,22 @@ devices: []
 map: []
 ports: {}
 ports_description: {}
-ingress: false
+ingress: true
+ingress_port: 8766
 tmpfs: true
 ulimits:
   nofile: 128
 options:
   enabled: false
   package_stage_enabled: false
+  github_pull_enabled: false
   listen_port: 8765
   trusted_broker_id: ""
   trusted_broker_public_key: ""
 schema:
   enabled: bool
   package_stage_enabled: bool
+  github_pull_enabled: bool
   listen_port: int
   trusted_broker_id: str
   trusted_broker_public_key: str

@@ -56,7 +56,7 @@ const launcher=fs.readFileSync(path.join(APP,'worker/launcher.mjs'),'utf8');
 
 test('local Home Assistant app has consistent version and aarch64 target',()=>{
   const version=config.match(/^version: "([^"]+)"/m)?.[1];
-  assert.equal(version,'0.0.6-dev.m5.12');
+  assert.equal(version,'0.0.6-dev.m5.13');
   assert.match(docker,new RegExp('ARG BUILD_VERSION='+version.replaceAll('.','\\.')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8')).version,version);
   assert.ok(worker.includes("const VERSION_WORKER='"+version+"'"));

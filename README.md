@@ -5,12 +5,15 @@ A Home Assistant app repository with a read-only diagnostic receiver.
 ## Safety defaults
 
 - Diagnostic receiver disabled by default.
+- The outbound GitHub diagnostic pull transport is separately disabled by default and only accepts existing signed diagnostic envelopes from the fixed private queue.
 - Only `STATUS_CHECK`, `HEARTBEAT_CHECK`, and `QUEUE_HEALTH_CHECK` are accepted.
 - No arbitrary code execution, shell interface, host mounts, Supervisor API, Docker API, privileged mode, or published ports.
 - The app targets aarch64 and starts manually.
 - Keep the receiver disabled until broker and worker identities are securely provisioned. Installing this test app alone does not establish a broker connection.
 
 This is a test build. The Docker image has not been built or validated by Home Assistant Supervisor. Review the source and logs before enabling diagnostics.
+
+The GitHub pull transport is a source candidate on branch `codex/m573-signed-github-pull-20261025` at app version `0.0.6-dev.m5.13`; it is not published or installed. It requires a reviewed Worker installation, separately provisioned broker identity, and a fine-grained repository token entered through Home Assistant-authenticated Ingress. The add-on does not pin a Home Assistant Owner identity. It does not provide autonomous ChatGPT Plus signing, package installation, or deployment. See [the transport protocol and setup boundary](docs/GITHUB-DIAGNOSTIC-PULL.md).
 
 ## H.A.D.E.S. M3.5 Puller
 
