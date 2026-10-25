@@ -13,7 +13,10 @@ function readOptions() {
       typeof options.enabled!=='boolean'||!Number.isInteger(options.listen_port)||
       options.listen_port<1024||options.listen_port>65535||
       typeof options.trusted_broker_id!=='string'||
-      typeof options.trusted_broker_public_key!=='string') throw Error('options_invalid');
+      typeof options.trusted_broker_public_key!=='string'||
+      (options.mobile_install_enabled!==undefined&&typeof options.mobile_install_enabled!=='boolean')||
+      (options.mobile_install_adapter_id!==undefined&&typeof options.mobile_install_adapter_id!=='string')||
+      (options.mobile_install_adapter_public_key!==undefined&&typeof options.mobile_install_adapter_public_key!=='string')) throw Error('options_invalid');
   return options;
 }
 
