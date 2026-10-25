@@ -1,0 +1,35 @@
+#include <tunables/global>
+
+profile c406e920_hades_m574_installer flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network inet stream,
+  network inet6 stream,
+
+  /usr/bin/node ix,
+  /usr/lib/** r,
+  /lib/** r,
+  /etc/hosts r,
+  /etc/resolv.conf r,
+  /etc/nsswitch.conf r,
+  /etc/passwd r,
+  /etc/group r,
+  /etc/ssl/** r,
+  /dev/null rw,
+  /dev/random r,
+  /dev/urandom r,
+  /dev/zero r,
+  /proc/self/attr/current r,
+  /proc/self/status r,
+  /proc/uptime r,
+  /run/** rwk,
+  /tmp/** rwk,
+  /opt/hades-m574-installer/** r,
+  /data/** rwk,
+
+  /addons/ r,
+  /addons/hades_m2_mobile/ rw,
+  /addons/hades_m2_mobile/** r,
+  /addons/hades_m2_mobile/Dockerfile rw,
+  /addons/hades_m2_mobile/.hades-m574-*.Dockerfile rw,
+}

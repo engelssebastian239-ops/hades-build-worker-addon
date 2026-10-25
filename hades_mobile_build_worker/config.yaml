@@ -1,0 +1,40 @@
+name: "H.A.D.E.S. Mobile Plan Worker"
+version: "0.1.0"
+slug: "hades_mobile_plan_worker"
+description: "Owner-authenticated, hash-only M574 planning with optional separately gated installation."
+arch:
+  - aarch64
+startup: application
+boot: manual_only
+stage: experimental
+init: false
+host_network: false
+host_ipc: false
+host_pid: false
+host_uts: false
+homeassistant_api: false
+hassio_api: false
+docker_api: false
+full_access: false
+apparmor: true
+privileged: []
+devices: []
+map: []
+ports: {}
+ports_description: {}
+ingress: true
+ingress_port: 8766
+panel_admin: true
+tmpfs: true
+ulimits:
+  nofile: 128
+options:
+  mobile_plan_enabled: false
+  mobile_install_enabled: false
+  installer_adapter_id: ""
+  installer_adapter_public_key: ""
+schema:
+  mobile_plan_enabled: bool
+  mobile_install_enabled: bool
+  installer_adapter_id: str
+  installer_adapter_public_key: str

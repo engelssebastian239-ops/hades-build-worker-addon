@@ -1,0 +1,6 @@
+import fs from 'node:fs';
+const ROOT='/data/hades-mobile-plan-worker',UID=1000,GID=1000;
+function options(){const x=JSON.parse(fs.readFileSync('/data/options.json','utf8'));if(!x||Object.getPrototypeOf(x)!==Object.prototype||typeof x.mobile_plan_enabled!=='boolean'||typeof x.mobile_install_enabled!=='boolean'||typeof x.installer_adapter_id!=='string'||typeof x.installer_adapter_public_key!=='string')throw Error('options_invalid');return x;}
+function prepare(){try{fs.mkdirSync(ROOT,{mode:0o700});}catch(e){if(e.code!=='EEXIST')throw e;}const s=fs.lstatSync(ROOT);if(!s.isDirectory()||s.isSymbolicLink())throw Error('data_root_invalid');fs.chownSync(ROOT,UID,GID);fs.chmodSync(ROOT,0o700);}
+async function main(){const o=options();prepare();process.env.HADES_OPTIONS_JSON=JSON.stringify(o);process.env.HADES_MOBILE_DATA_ROOT=ROOT;process.env.HADES_MOBILE_TOKEN_FILE=ROOT+'/github-token';process.env.HADES_MOBILE_KEY_FILE=ROOT+'/worker-ed25519.pem';process.setgroups([GID]);process.setgid(GID);process.setuid(UID);const m=await import('./main.mjs');await m.main();}
+main().catch(e=>{console.error(JSON.stringify({state:'MOBILE_WORKER_BLOCKED',code:/^[a-z0-9_]+$/i.test(e?.message||'')?e.message:'startup_failed'}));process.exitCode=2;});
