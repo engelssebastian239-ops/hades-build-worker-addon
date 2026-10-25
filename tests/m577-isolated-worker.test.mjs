@@ -15,6 +15,7 @@ test('parallel add-ons default to PLAN off and INSTALL off with no broad Worker 
 
 test('new Worker ships only isolated Mobile modules and Installer uses a unique slug/profile',()=>{
   const docker=read('hades_mobile_build_worker/Dockerfile');
+  assert.ok(docker.includes('COPY shared/protocol.mjs ./shared/protocol.mjs'));
   assert.ok(docker.includes('mobile-install-github.mjs'));assert.ok(docker.includes('mobile-credential-provisioner.mjs'));
   assert.equal(docker.includes('worker/main.mjs ./worker/main.mjs\nCOPY worker/package-stage.mjs'),false);
   assert.ok(!docker.includes('hades_build_worker/worker/main.mjs'));

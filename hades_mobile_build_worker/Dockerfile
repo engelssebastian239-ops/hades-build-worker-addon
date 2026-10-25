@@ -4,6 +4,7 @@ LABEL io.hass.type="app" io.hass.arch="${BUILD_ARCH}"
 RUN apk add --no-cache nodejs
 WORKDIR /opt/hades-mobile-plan-worker
 COPY shared/identity.mjs ./shared/identity.mjs
+COPY shared/protocol.mjs ./shared/protocol.mjs
 COPY worker/launcher.mjs ./worker/launcher.mjs
 COPY worker/main.mjs ./worker/main.mjs
 COPY worker/mobile-install-plan.mjs ./worker/mobile-install-plan.mjs
